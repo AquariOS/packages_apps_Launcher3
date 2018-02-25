@@ -1,7 +1,6 @@
 package com.android.launcher3.popup;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -13,12 +12,13 @@ import com.android.launcher3.ItemInfo;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.R;
 import com.android.launcher3.model.WidgetItem;
-import com.android.launcher3.topwidget.OmniJawsClient;
 import com.android.launcher3.util.PackageUserKey;
-import com.android.launcher3.util.Themes;
 import com.android.launcher3.widget.WidgetsBottomSheet;
 
 import java.util.List;
+
+import static com.android.launcher3.userevent.nano.LauncherLogProto.Action;
+import static com.android.launcher3.userevent.nano.LauncherLogProto.ControlType;
 
 /**
  * Represents a system shortcut for a given app. The shortcut should have a static label and
@@ -26,7 +26,7 @@ import java.util.List;
  *
  * Example system shortcuts, defined as inner classes, include Widgets and AppInfo.
  */
-public abstract class SystemShortcut {
+public abstract class SystemShortcut extends ItemInfo {
     private final int mIconResId;
     private final int mLabelResId;
 
@@ -35,10 +35,8 @@ public abstract class SystemShortcut {
         mLabelResId = labelResId;
     }
 
-    public Drawable getIcon(Context context, int colorAttr) {
-        Drawable icon = context.getResources().getDrawable(mIconResId, context.getTheme()).mutate();
-        icon.setTint(Themes.getAttrColor(context, colorAttr));
-        return icon;
+    public Drawable getIcon(Context context) {
+        return context.getResources().getDrawable(mIconResId, context.getTheme());
     }
 
     public String getLabel(Context context) {
@@ -70,6 +68,8 @@ public abstract class SystemShortcut {
                             (WidgetsBottomSheet) launcher.getLayoutInflater().inflate(
                                     R.layout.widgets_bottom_sheet, launcher.getDragLayer(), false);
                     widgetsBottomSheet.populateAndShow(itemInfo);
+                    launcher.getUserEventDispatcher().logActionOnControl(Action.Touch.TAP,
+                            ControlType.WIDGETS_BUTTON, view);
                 }
             };
         }
@@ -89,27 +89,8 @@ public abstract class SystemShortcut {
                     Rect sourceBounds = launcher.getViewBounds(view);
                     Bundle opts = launcher.getActivityLaunchOptions(view);
                     InfoDropTarget.startDetailsActivityForInfo(itemInfo, launcher, null, sourceBounds, opts);
-                }
-            };
-        }
-    }
-
-    public static class WeatherSettings extends SystemShortcut {
-        public WeatherSettings() {
-            super(R.drawable.ic_weather_settings, R.string.weather_settings_drop_target_label);
-        }
-
-        @Override
-        public View.OnClickListener getOnClickListener(final Launcher launcher,
-                final ItemInfo itemInfo) {
-            return new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    OmniJawsClient weatherClient = new OmniJawsClient(launcher);
-                    Intent intent = weatherClient.getSettingsIntent();
-                    if (intent != null) {
-                        launcher.startActivitySafely(null, intent, null);
-                    }
+                    launcher.getUserEventDispatcher().logActionOnControl(Action.Touch.TAP,
+                            ControlType.APPINFO_TARGET, view);
                 }
             };
         }

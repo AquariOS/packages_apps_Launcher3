@@ -17,31 +17,25 @@
 package com.android.launcher3;
 
 import android.app.Activity;
-import android.app.ActionBar;
+import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.DialogFragment;
+import android.app.FragmentManager;
+import android.content.ComponentName;
 import android.content.ContentResolver;
+import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
-import android.database.ContentObserver;
 import android.os.Bundle;
-import android.os.Handler;
 import android.preference.ListPreference;
 import android.preference.Preference;
-import android.preference.Preference.OnPreferenceChangeListener;
-import android.preference.PreferenceCategory;
 import android.preference.PreferenceFragment;
-import android.preference.PreferenceScreen;
-import android.preference.SwitchPreference;
 import android.provider.Settings;
-import android.provider.Settings.System;
-import android.support.v4.os.BuildCompat;
-import android.view.MenuItem;
 
 import com.android.launcher3.graphics.IconShapeOverride;
-import com.android.launcher3.topwidget.OmniJawsClient;
-
-import java.util.List;
-import java.util.ArrayList;
+import com.android.launcher3.notification.NotificationListener;
+import com.android.launcher3.util.SettingsObserver;
+import com.android.launcher3.views.ButtonPreference;
 
 /**
  * Settings activity for Launcher. Currently implements the following setting: Allow rotation
@@ -49,21 +43,22 @@ import java.util.ArrayList;
 public class SettingsActivity extends Activity {
 
     private static final String ICON_BADGING_PREFERENCE_KEY = "pref_icon_badging";
-    // TODO: use Settings.Secure.NOTIFICATION_BADGING
-    private static final String NOTIFICATION_BADGING = "notification_badging";
-    private static final String DEFAULT_WEATHER_ICON_PACKAGE = "org.omnirom.omnijaws";
-    private static final String DEFAULT_WEATHER_ICON_PREFIX = "outline";
-    private static final String CHRONUS_ICON_PACK_INTENT = "com.dvtonder.chronus.ICON_PACK";
+    /** Hidden field Settings.Secure.NOTIFICATION_BADGING */
+    public static final String NOTIFICATION_BADGING = "notification_badging";
+    /** Hidden field Settings.Secure.ENABLED_NOTIFICATION_LISTENERS */
+    private static final String NOTIFICATION_ENABLED_LISTENERS = "enabled_notification_listeners";
+    private static final String HIDDEN_APPS = "hidden_app";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getActionBar().setDisplayOptions(ActionBar.DISPLAY_HOME_AS_UP|ActionBar.DISPLAY_SHOW_TITLE);
 
-        // Display the fragment as the main content.
-        getFragmentManager().beginTransaction()
-                .replace(android.R.id.content, new LauncherSettingsFragment())
-                .commit();
+        if (savedInstanceState == null) {
+            // Display the fragment as the main content.
+            getFragmentManager().beginTransaction()
+                    .replace(android.R.id.content, new LauncherSettingsFragment())
+                    .commit();
+        }
     }
 
     /**
@@ -92,158 +87,58 @@ public class SettingsActivity extends Activity {
 
                 // Register a content observer to listen for system setting changes while
                 // this UI is active.
-                resolver.registerContentObserver(
-                        Settings.System.getUriFor(System.ACCELEROMETER_ROTATION),
-                        false, mRotationLockObserver);
+                mRotationLockObserver.register(Settings.System.ACCELEROMETER_ROTATION);
 
                 // Initialize the UI once
-                mRotationLockObserver.onChange(true);
                 rotationPref.setDefaultValue(Utilities.getAllowRotationDefaultValue(getActivity()));
             }
 
-            Preference iconBadgingPref = findPreference(ICON_BADGING_PREFERENCE_KEY);
-            if (!BuildCompat.isAtLeastO()) {
+            ButtonPreference iconBadgingPref =
+                    (ButtonPreference) findPreference(ICON_BADGING_PREFERENCE_KEY);
+            if (!Utilities.ATLEAST_OREO) {
                 getPreferenceScreen().removePreference(
                         findPreference(SessionCommitReceiver.ADD_ICON_PREFERENCE_KEY));
+            }
+            if (!getResources().getBoolean(R.bool.notification_badging_enabled)) {
                 getPreferenceScreen().removePreference(iconBadgingPref);
             } else {
                 // Listen to system notification badge settings while this UI is active.
-                mIconBadgingObserver = new IconBadgingObserver(iconBadgingPref, resolver);
-                resolver.registerContentObserver(
-                        Settings.Secure.getUriFor(NOTIFICATION_BADGING),
-                        false, mIconBadgingObserver);
-                mIconBadgingObserver.onChange(true);
+                mIconBadgingObserver = new IconBadgingObserver(
+                        iconBadgingPref, resolver, getFragmentManager());
+                mIconBadgingObserver.register(NOTIFICATION_BADGING, NOTIFICATION_ENABLED_LISTENERS);
             }
 
-            final ListPreference iconShape = (ListPreference) findPreference(Utilities.ICON_SHAPE_PREFERENCE_KEY);
-            iconShape.setSummary(iconShape.getEntry());
-            iconShape.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    int index = iconShape.findIndexOfValue((String) newValue);
-                    iconShape.setSummary(iconShape.getEntries()[index]);
-                    return true;
+            Preference iconShapeOverride = findPreference(IconShapeOverride.KEY_PREFERENCE);
+            if (iconShapeOverride != null) {
+                if (IconShapeOverride.isSupported(getActivity())) {
+                    IconShapeOverride.handlePreferenceUi((ListPreference) iconShapeOverride);
+                } else {
+                    getPreferenceScreen().removePreference(iconShapeOverride);
                 }
-            });
-
-            final ListPreference iconPack = (ListPreference) findPreference(Utilities.WEATHER_ICON_PACK_PREFERENCE_KEY) ;
-
-            OmniJawsClient weatherClient = new OmniJawsClient(getActivity());
-            if (!weatherClient.isOmniJawsServiceInstalled()) {
-                PreferenceCategory widgetCategory = (PreferenceCategory) findPreference("widget_category");
-                widgetCategory.removePreference(iconPack);
-            } else {
-                String settingHeaderPackage = Utilities.getWeatherIconPack(getActivity());
-                if (settingHeaderPackage == null) {
-                    settingHeaderPackage = DEFAULT_WEATHER_ICON_PACKAGE + "." + DEFAULT_WEATHER_ICON_PREFIX;
-                }
-
-                List<String> entries = new ArrayList<String>();
-                List<String> values = new ArrayList<String>();
-                getAvailableWeatherIconPacks(entries, values);
-                iconPack.setEntries(entries.toArray(new String[entries.size()]));
-                iconPack.setEntryValues(values.toArray(new String[values.size()]));
-
-                int valueIndex = iconPack.findIndexOfValue(settingHeaderPackage);
-                if (valueIndex == -1) {
-                    // no longer found
-                    settingHeaderPackage = DEFAULT_WEATHER_ICON_PACKAGE + "." + DEFAULT_WEATHER_ICON_PREFIX;
-                    valueIndex = iconPack.findIndexOfValue(settingHeaderPackage);
-                }
-                iconPack.setValueIndex(valueIndex >= 0 ? valueIndex : 0);
-                iconPack.setSummary(iconPack.getEntry());
-                iconPack.setOnPreferenceChangeListener(new Preference.OnPreferenceChangeListener() {
-                    @Override
-                    public boolean onPreferenceChange(Preference preference, Object newValue) {
-                        int valueIndex = iconPack.findIndexOfValue((String)newValue);
-                        iconPack.setSummary(iconPack.getEntries()[valueIndex]);
-                        return true;
-                    }
-                });
             }
 
-            final ListPreference eventsPeriod = (ListPreference) findPreference(Utilities.SHOW_EVENTS_PERIOD_PREFERENCE_KEY);
-            eventsPeriod.setSummary(eventsPeriod.getEntry());
-            eventsPeriod.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    int index = eventsPeriod.findIndexOfValue((String) newValue);
-                    eventsPeriod.setSummary(eventsPeriod.getEntries()[index]);
-                    return true;
-                }
+            Preference hiddenApp = findPreference(Utilities.KEY_HIDDEN_APPS);
+            hiddenApp.setOnPreferenceClickListener(
+                preference -> {
+                    Intent intent = new Intent("com.android.launcher3.hideapps.HIDE_APPS")
+                            .setPackage(getActivity().getPackageName());
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    getActivity().startActivity(intent);
+                    return false;
             });
-
-            final ListPreference searchBarLocation = (ListPreference) findPreference(Utilities.SHOW_SEARCH_BAR_LOCATION_PREFERENCE_KEY);
-            searchBarLocation.setSummary(searchBarLocation.getEntry());
-            searchBarLocation.setOnPreferenceChangeListener(new OnPreferenceChangeListener() {
-                public boolean onPreferenceChange(Preference preference, Object newValue) {
-                    int index = searchBarLocation.findIndexOfValue((String) newValue);
-                    searchBarLocation.setSummary(searchBarLocation.getEntries()[index]);
-                    return true;
-                }
-            });
-
-            SwitchPreference leftTabPage = (SwitchPreference) findPreference(Utilities.SHOW_LEFT_TAB_PREFERENCE_KEY);
-            if (!isSearchInstalled()) {
-                getPreferenceScreen().removePreference(leftTabPage);
-            }
         }
 
         @Override
         public void onDestroy() {
             if (mRotationLockObserver != null) {
-                getActivity().getContentResolver().unregisterContentObserver(mRotationLockObserver);
+                mRotationLockObserver.unregister();
                 mRotationLockObserver = null;
             }
             if (mIconBadgingObserver != null) {
-                getActivity().getContentResolver().unregisterContentObserver(mIconBadgingObserver);
+                mIconBadgingObserver.unregister();
                 mIconBadgingObserver = null;
             }
             super.onDestroy();
-        }
-
-        private void getAvailableWeatherIconPacks(List<String> entries, List<String> values) {
-            Intent i = new Intent();
-            PackageManager packageManager = getActivity().getPackageManager();
-            i.setAction("org.omnirom.WeatherIconPack");
-            for (ResolveInfo r : packageManager.queryIntentActivities(i, 0)) {
-                String packageName = r.activityInfo.packageName;
-                String label = r.activityInfo.loadLabel(getActivity().getPackageManager()).toString();
-                if (label == null) {
-                    label = r.activityInfo.packageName;
-                }
-                if (entries.contains(label)) {
-                    continue;
-                }
-                if (packageName.equals(DEFAULT_WEATHER_ICON_PACKAGE)) {
-                    values.add(0, r.activityInfo.name);
-                } else {
-                    values.add(r.activityInfo.name);
-                }
-
-                if (packageName.equals(DEFAULT_WEATHER_ICON_PACKAGE)) {
-                    entries.add(0, label);
-                } else {
-                    entries.add(label);
-                }
-            }
-            i = new Intent(Intent.ACTION_MAIN);
-            i.addCategory(CHRONUS_ICON_PACK_INTENT);
-            for (ResolveInfo r : packageManager.queryIntentActivities(i, 0)) {
-                String packageName = r.activityInfo.packageName;
-                String label = r.activityInfo.loadLabel(getActivity().getPackageManager()).toString();
-                if (label == null) {
-                    label = r.activityInfo.packageName;
-                }
-                if (entries.contains(label)) {
-                    continue;
-                }
-                values.add(packageName + ".weather");
-
-                entries.add(label);
-            }
-        }
-
-        private boolean isSearchInstalled() {
-            return Utilities.isPackageInstalled(getActivity(), LauncherTab.SEARCH_PACKAGE);
         }
     }
 
@@ -251,22 +146,18 @@ public class SettingsActivity extends Activity {
      * Content observer which listens for system auto-rotate setting changes, and enables/disables
      * the launcher rotation setting accordingly.
      */
-    private static class SystemDisplayRotationLockObserver extends ContentObserver {
+    private static class SystemDisplayRotationLockObserver extends SettingsObserver.System {
 
         private final Preference mRotationPref;
-        private final ContentResolver mResolver;
 
         public SystemDisplayRotationLockObserver(
                 Preference rotationPref, ContentResolver resolver) {
-            super(new Handler());
+            super(resolver);
             mRotationPref = rotationPref;
-            mResolver = resolver;
         }
 
         @Override
-        public void onChange(boolean selfChange) {
-            boolean enabled = Settings.System.getInt(mResolver,
-                    Settings.System.ACCELEROMETER_ROTATION, 1) == 1;
+        public void onSettingChanged(boolean enabled) {
             mRotationPref.setEnabled(enabled);
             mRotationPref.setSummary(enabled
                     ? R.string.allow_rotation_desc : R.string.allow_rotation_blocked_desc);
@@ -277,31 +168,83 @@ public class SettingsActivity extends Activity {
      * Content observer which listens for system badging setting changes,
      * and updates the launcher badging setting subtext accordingly.
      */
-    private static class IconBadgingObserver extends ContentObserver {
+    private static class IconBadgingObserver extends SettingsObserver.Secure
+            implements Preference.OnPreferenceClickListener {
 
-        private final Preference mBadgingPref;
+        private final ButtonPreference mBadgingPref;
         private final ContentResolver mResolver;
+        private final FragmentManager mFragmentManager;
+        private boolean serviceEnabled = true;
 
-        public IconBadgingObserver(Preference badgingPref, ContentResolver resolver) {
-            super(new Handler());
+        public IconBadgingObserver(ButtonPreference badgingPref, ContentResolver resolver,
+                FragmentManager fragmentManager) {
+            super(resolver);
             mBadgingPref = badgingPref;
             mResolver = resolver;
+            mFragmentManager = fragmentManager;
         }
 
         @Override
-        public void onChange(boolean selfChange) {
-            boolean enabled = Settings.Secure.getInt(mResolver, NOTIFICATION_BADGING, 1) == 1;
-            mBadgingPref.setSummary(enabled
-                    ? R.string.icon_badging_desc_on
-                    : R.string.icon_badging_desc_off);
+        public void onSettingChanged(boolean enabled) {
+            int summary = enabled ? R.string.icon_badging_desc_on : R.string.icon_badging_desc_off;
+
+            if (enabled) {
+                // Check if the listener is enabled or not.
+                String enabledListeners =
+                        Settings.Secure.getString(mResolver, NOTIFICATION_ENABLED_LISTENERS);
+                ComponentName myListener =
+                        new ComponentName(mBadgingPref.getContext(), NotificationListener.class);
+                serviceEnabled = enabledListeners != null &&
+                        (enabledListeners.contains(myListener.flattenToString()) ||
+                                enabledListeners.contains(myListener.flattenToShortString()));
+                if (!serviceEnabled) {
+                    summary = R.string.title_missing_notification_access;
+                }
+            }
+            mBadgingPref.setWidgetFrameVisible(!serviceEnabled);
+            mBadgingPref.setOnPreferenceClickListener(serviceEnabled && Utilities.ATLEAST_OREO ? null : this);
+            mBadgingPref.setSummary(summary);
+
+        }
+
+        @Override
+        public boolean onPreferenceClick(Preference preference) {
+            if (!Utilities.ATLEAST_OREO && serviceEnabled) {
+                ComponentName cn = new ComponentName(preference.getContext(), NotificationListener.class);
+                Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        .putExtra(":settings:fragment_args_key", cn.flattenToString());
+                preference.getContext().startActivity(intent);
+            } else {
+                new NotificationAccessConfirmation().show(mFragmentManager, "notification_access");
+            }
+            return true;
         }
     }
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            finish();
+    public static class NotificationAccessConfirmation
+            extends DialogFragment implements DialogInterface.OnClickListener {
+
+        @Override
+        public Dialog onCreateDialog(Bundle savedInstanceState) {
+            final Context context = getActivity();
+            String msg = context.getString(R.string.msg_missing_notification_access,
+                    context.getString(R.string.derived_app_name));
+            return new AlertDialog.Builder(context)
+                    .setTitle(R.string.title_missing_notification_access)
+                    .setMessage(msg)
+                    .setNegativeButton(android.R.string.cancel, null)
+                    .setPositiveButton(R.string.title_change_settings, this)
+                    .create();
         }
-        return true;
+
+        @Override
+        public void onClick(DialogInterface dialogInterface, int i) {
+            ComponentName cn = new ComponentName(getActivity(), NotificationListener.class);
+            Intent intent = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    .putExtra(":settings:fragment_args_key", cn.flattenToString());
+            getActivity().startActivity(intent);
+        }
     }
 }

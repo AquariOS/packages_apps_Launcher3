@@ -37,7 +37,6 @@ import android.os.Bundle;
 import android.os.DeadObjectException;
 import android.os.PowerManager;
 import android.os.TransactionTooLargeException;
-import android.support.v4.os.BuildCompat;
 import android.text.Spannable;
 import android.text.SpannableString;
 import android.text.TextUtils;
@@ -52,7 +51,6 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 
 import com.android.launcher3.config.FeatureFlags;
-import com.android.launcher3.config.ProviderConfig;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -85,15 +83,17 @@ public final class Utilities {
     private static final Matrix sMatrix = new Matrix();
     private static final Matrix sInverseMatrix = new Matrix();
 
-    public static boolean isAtLeastO() {
-        return BuildCompat.isAtLeastO();
-    }
+    public static final boolean ATLEAST_OREO_MR1 =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1;
+
+    public static final boolean ATLEAST_OREO =
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.O;
 
     public static final boolean ATLEAST_NOUGAT_MR1 =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1;
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N_MR1;
 
     public static final boolean ATLEAST_NOUGAT =
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.N;
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.N;
 
     public static final boolean ATLEAST_MARSHMALLOW =
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M;
@@ -111,6 +111,7 @@ public final class Utilities {
     public static final String EXTRA_WALLPAPER_OFFSET = "com.android.launcher3.WALLPAPER_OFFSET";
 
     public static final int COLOR_EXTRACTION_JOB_ID = 1;
+    public static final int WALLPAPER_COMPAT_JOB_ID = 2;
 
     // These values are same as that in {@link AsyncTask}.
     private static final int CPU_COUNT = Runtime.getRuntime().availableProcessors();
@@ -125,22 +126,28 @@ public final class Utilities {
             TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 
     public static final String ALLOW_ROTATION_PREFERENCE_KEY = "pref_allowRotation";
-    public static final String ADAPTIVE_ICONS_PREFERENCE_KEY = "pref_adaptiveIcons";
-    public static final String ICON_PACK_PREFERENCE_KEY = "pref_iconPackPackage";
-    public static final String LEGACY_ICON_PREFERENCE_KEY = "pref_legacyIcons";
-    public static final String ICON_SHAPE_PREFERENCE_KEY = "pref_iconShape";
-    public static final String ICON_SHADOW_PREFERENCE_KEY = "pref_iconShadow";
-    public static final String SHOW_SEARCH_BAR_PREFERENCE_KEY = "pref_searchBar";
-    public static final String SHOW_TOP_WIDGET_PREFERENCE_KEY = "pref_topWidget";
-    public static final String SHOW_HOTSEAT_BG_PREFERENCE_KEY = "pref_hotSeatBgColor";
-    public static final String SHOW_HOTSEAT_PREFERENCE_KEY = "pref_hotSeat";
-    public static final String WEATHER_ICON_PACK_PREFERENCE_KEY = "pref_weatherIconPack";
-    public static final String SHOW_ALL_DAY_EVENTS_PREFERENCE_KEY = "pref_allDayEvents";
-    public static final String SHOW_EVENTS_PERIOD_PREFERENCE_KEY = "pref_showEventsPeriod";
-    public static final String SHOW_TODAY_PREFERENCE_KEY = "pref_showToday";
-    public static final String SHOW_SEARCH_BAR_LOCATION_PREFERENCE_KEY = "pref_searchBarLocation";
-    public static final String SHOW_EVENTS_PREFERENCE_KEY = "pref_showEvents";
-    public static final String SHOW_LEFT_TAB_PREFERENCE_KEY = "pref_left_tab";
+    public static final String KEY_HIDDEN_APPS = "hidden_app";
+    public static final String KEY_HIDDEN_APPS_SET = "hidden_app_set";
+
+    public static final String BOTTOM_SEARCH_BAR_KEY = "pref_bottom_search_bar";
+    public static final String TOP_SEARCH_BAR_KEY = "pref_top_search_bar";
+
+    private static final boolean BOTTOM_SEARCH_BAR_DEFAULT = true;
+    private static final boolean TOP_SEARCH_BAR_DEFAULT = true;
+
+    public static final String KEY_SHOW_SWIPEUP_ARROW = "pref_show_swipeup_arrow";
+
+    public static final String GRID_COLUMNS = "pref_grid_columns";
+    public static final String GRID_ROWS = "pref_grid_rows";
+    public static final String HOTSEAT_ICONS = "pref_hotseat_icons";
+    private static final String GRID_COLUMNS_DEFAULT = "default";
+    private static final String GRID_ROWS_DEFAULT = "default";
+    private static final String HOTSEAT_ICONS_DEFAULTS = "default";
+
+    public static boolean showSwipeUpIndicator(Context context) {
+        return getPrefs(context).getBoolean(KEY_SHOW_SWIPEUP_ARROW,
+                true);
+    }
 
     public static boolean isPropertyEnabled(String propertyName) {
         return Log.isLoggable(propertyName, Log.VERBOSE);
@@ -149,69 +156,6 @@ public final class Utilities {
     public static boolean isAllowRotationPrefEnabled(Context context) {
         return getPrefs(context).getBoolean(ALLOW_ROTATION_PREFERENCE_KEY,
                 getAllowRotationDefaultValue(context));
-    }
-
-    public static boolean isAdaptiveIcons(Context context) {
-        return getPrefs(context).getBoolean(ADAPTIVE_ICONS_PREFERENCE_KEY, FeatureFlags.ADAPTIVE_ICON_ENABLED);
-    }
-
-    public static boolean isLegacyIcons(Context context) {
-        return getPrefs(context).getBoolean(LEGACY_ICON_PREFERENCE_KEY, FeatureFlags.LEGACY_ICON_TREATMENT);
-    }
-
-    public static String getIconShapePath(Context context) {
-        return getPrefs(context).getString(ICON_SHAPE_PREFERENCE_KEY,
-                context.getResources().getString(R.string.icon_mask_square_string));
-    }
-
-    public static boolean isIconShadow(Context context) {
-        return getPrefs(context).getBoolean(ICON_SHADOW_PREFERENCE_KEY, FeatureFlags.ADAPTIVE_ICON_SHADOW);
-    }
-
-    public static boolean isBottomSearchBar(Context context) {
-        return getPrefs(context).getBoolean(SHOW_SEARCH_BAR_PREFERENCE_KEY, true);
-    }
-
-    public static boolean isTopSpaceReserved(Context context) {
-        return getPrefs(context).getBoolean(SHOW_TOP_WIDGET_PREFERENCE_KEY, true);
-    }
-
-    public static boolean isShowHotseatBgColor(Context context) {
-        return getPrefs(context).getBoolean(SHOW_HOTSEAT_BG_PREFERENCE_KEY, true);
-    }
-
-    public static boolean isShowHotseat(Context context) {
-        return getPrefs(context).getBoolean(SHOW_HOTSEAT_PREFERENCE_KEY, true);
-    }
-
-    public static String getWeatherIconPack(Context context) {
-        return getPrefs(context).getString(WEATHER_ICON_PACK_PREFERENCE_KEY, null);
-    }
-
-    public static boolean isShowAllDayEvents(Context context) {
-        return getPrefs(context).getBoolean(SHOW_ALL_DAY_EVENTS_PREFERENCE_KEY, false);
-    }
-
-    public static boolean isShowToday(Context context) {
-        return getPrefs(context).getBoolean(SHOW_TODAY_PREFERENCE_KEY, true);
-    }
-
-    public static int getEventDisplayPeriod(Context context) {
-        return Integer.valueOf(getPrefs(context).getString(SHOW_EVENTS_PERIOD_PREFERENCE_KEY,
-                context.getResources().getString(R.string.preferences_widget_days_default)));
-    }
-
-    // 0 is below hotseat 1 is above
-    public static int getSearchBarLocation(Context context) {
-        return Integer.valueOf(getPrefs(context).getString(SHOW_SEARCH_BAR_LOCATION_PREFERENCE_KEY, "0"));
-    }
-
-    public static boolean isShowEvents(Context context) {
-        return getPrefs(context).getBoolean(SHOW_EVENTS_PREFERENCE_KEY, true);
-    }
-
-    public static boolean isShowLeftTab(Context context) {
-        return getPrefs(context).getBoolean(SHOW_LEFT_TAB_PREFERENCE_KEY, false);
     }
 
     public static boolean getAllowRotationDefaultValue(Context context) {
@@ -224,6 +168,59 @@ public final class Utilities {
             return originalSmallestWidth >= 600;
         }
         return false;
+    }
+
+    public static boolean isBottomSearchBarVisible(Context context) {
+        return getPrefs(context).getBoolean(BOTTOM_SEARCH_BAR_KEY, BOTTOM_SEARCH_BAR_DEFAULT);
+    }
+
+    public static boolean isTopSearchBarVisible(Context context) {
+        return getPrefs(context).getBoolean(TOP_SEARCH_BAR_KEY, TOP_SEARCH_BAR_DEFAULT);
+    }
+
+    public static boolean qsbEnabled(Context context) {
+        return Integer.valueOf(getDevicePrefs(context).getString("pref_show_clock_weather", "0")) != 1;
+    }
+
+    public static int getGridColumns(Context context, int fallback) {
+        return getIconCount(context, GRID_COLUMNS, GRID_COLUMNS_DEFAULT, fallback);
+    }
+
+    public static int getGridRows(Context context, int fallback) {
+        return getIconCount(context, GRID_ROWS, GRID_ROWS_DEFAULT, fallback);
+    }
+
+    public static int getHotseatIcons(Context context, int fallback) {
+        return getIconCount(context, HOTSEAT_ICONS, HOTSEAT_ICONS_DEFAULTS, fallback);
+    }
+
+    private static int getIconCount(Context context, String preferenceName, String preferenceFallback, int deviceProfileFallback) {
+        String saved = getPrefs(context).getString(preferenceName, preferenceFallback);
+        int num;
+        switch (saved) {
+            case "default":
+                num = deviceProfileFallback;
+                break;
+            case "three":
+                num = 3;
+                break;
+            case "four":
+                num = 4;
+                break;
+            case "five":
+                num = 5;
+                break;
+            case "six":
+                num = 6;
+                break;
+            case "seven":
+                num = 7;
+                break;
+            default:
+                num = deviceProfileFallback;
+                break;
+        }
+        return num;
     }
 
     /**
@@ -340,7 +337,7 @@ public final class Utilities {
         return scale;
     }
 
-    static boolean isSystemApp(Context context, Intent intent) {
+    public static boolean isSystemApp(Context context, Intent intent) {
         PackageManager pm = context.getPackageManager();
         ComponentName cn = intent.getComponent();
         String packageName = null;
@@ -363,21 +360,6 @@ public final class Utilities {
         } else {
             return false;
         }
-    }
-
-    public static boolean isPackageInstalled(Context context, String pkg) {
-        if (pkg != null) {
-            try {
-                PackageInfo pi = context.getPackageManager().getPackageInfo(pkg, 0);
-                if (!pi.applicationInfo.enabled) {
-                    return false;
-                }
-            } catch (PackageManager.NameNotFoundException e) {
-                return false;
-            }
-        }
-
-        return true;
     }
 
     /**
@@ -645,6 +627,11 @@ public final class Utilities {
                 LauncherFiles.SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
     }
 
+    public static SharedPreferences getDevicePrefs(Context context) {
+        return context.getSharedPreferences(
+                LauncherFiles.DEVICE_PREFERENCES_KEY, Context.MODE_PRIVATE);
+    }
+
     public static boolean isPowerSaverOn(Context context) {
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         return powerManager.isPowerSaveMode();
@@ -666,7 +653,7 @@ public final class Utilities {
             try {
                 c.close();
             } catch (IOException e) {
-                if (ProviderConfig.IS_DOGFOOD_BUILD) {
+                if (FeatureFlags.IS_DOGFOOD_BUILD) {
                     Log.d(TAG, "Error closing", e);
                 }
             }
@@ -742,4 +729,5 @@ public final class Utilities {
         hashSet.add(elem);
         return hashSet;
     }
+
 }
