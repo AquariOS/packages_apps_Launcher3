@@ -27,8 +27,10 @@ import android.os.Bundle;
 import android.service.notification.StatusBarNotification;
 import android.view.View;
 
+import com.android.launcher3.AbstractFloatingView;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherAppState;
+import com.android.launcher3.Utilities;
 import com.android.launcher3.graphics.IconPalette;
 import com.android.launcher3.popup.PopupContainerWithArrow;
 import com.android.launcher3.util.PackageUserKey;
@@ -65,7 +67,7 @@ public class NotificationInfo implements View.OnClickListener {
         title = notification.extras.getCharSequence(Notification.EXTRA_TITLE);
         text = notification.extras.getCharSequence(Notification.EXTRA_TEXT);
 
-        mBadgeIcon = notification.getBadgeIconType();
+        if (Utilities.ATLEAST_OREO) mBadgeIcon = notification.getBadgeIconType();
         // Load the icon. Since it is backed by ashmem, we won't copy the entire bitmap
         // into our process as long as we don't touch it and it exists in systemui.
         Icon icon = mBadgeIcon == Notification.BADGE_ICON_SMALL ? null : notification.getLargeIcon();
@@ -93,6 +95,9 @@ public class NotificationInfo implements View.OnClickListener {
 
     @Override
     public void onClick(View view) {
+        if (intent == null) {
+            return;
+        }
         final Launcher launcher = Launcher.getLauncher(view.getContext());
         Bundle activityOptions = ActivityOptions.makeClipRevealAnimation(
                 view, 0, 0, view.getWidth(), view.getHeight()).toBundle();
@@ -105,7 +110,8 @@ public class NotificationInfo implements View.OnClickListener {
         if (autoCancel) {
             launcher.getPopupDataProvider().cancelNotification(notificationKey);
         }
-        PopupContainerWithArrow.getOpen(launcher).close(true);
+        AbstractFloatingView.closeOpenContainer(launcher, AbstractFloatingView
+                .TYPE_POPUP_CONTAINER_WITH_ARROW);
     }
 
     public Drawable getIconForBackground(Context context, int background) {

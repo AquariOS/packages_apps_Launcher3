@@ -35,6 +35,7 @@ import com.android.launcher3.ItemInfo;
 import com.android.launcher3.Launcher;
 import com.android.launcher3.R;
 import com.android.launcher3.ShortcutInfo;
+import com.android.launcher3.Utilities;
 import com.android.launcher3.accessibility.DragViewStateAnnouncer;
 import com.android.launcher3.util.ItemInfoMatcher;
 import com.android.launcher3.util.Thunk;
@@ -137,9 +138,11 @@ public class DragController implements DragDriver.EventListener, TouchController
             android.os.Debug.startMethodTracing("Launcher");
         }
 
-        // Hide soft keyboard, if visible
-        mLauncher.getSystemService(InputMethodManager.class)
-                .hideSoftInputFromWindow(mWindowToken, 0);
+        if (Utilities.ATLEAST_MARSHMALLOW) {
+            // Hide soft keyboard, if visible
+            mLauncher.getSystemService(InputMethodManager.class)
+                    .hideSoftInputFromWindow(mWindowToken, 0);
+        }
 
         mOptions = options;
         if (mOptions.systemDndStartPoint != null) {
@@ -165,7 +168,7 @@ public class DragController implements DragDriver.EventListener, TouchController
                 ? res.getDimensionPixelSize(R.dimen.pre_drag_view_scale) : 0f;
         final DragView dragView = mDragObject.dragView = new DragView(mLauncher, b, registrationX,
                 registrationY, initialDragViewScale, scaleDps);
-
+        dragView.setItemInfo(dragInfo);
         mDragObject.dragComplete = false;
         if (mOptions.isAccessibleDrag) {
             // For an accessible drag, we assume the view is being dragged from the center.
@@ -210,13 +213,13 @@ public class DragController implements DragDriver.EventListener, TouchController
     }
 
     private void callOnDragStart() {
-        for (DragListener listener : new ArrayList<>(mListeners)) {
-            listener.onDragStart(mDragObject, mOptions);
-        }
         if (mOptions.preDragCondition != null) {
             mOptions.preDragCondition.onPreDragEnd(mDragObject, true /* dragStarted*/);
         }
         mIsInPreDrag = false;
+        for (DragListener listener : new ArrayList<>(mListeners)) {
+            listener.onDragStart(mDragObject, mOptions);
+        }
     }
 
     /**

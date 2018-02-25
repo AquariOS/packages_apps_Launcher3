@@ -17,60 +17,8 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
     <PreferenceCategory
-        android:key="icon_category"
-        android:title="@string/icon_category_title" >
-
-        <com.android.launcher3.preferences.IconPackPreference
-            android:key="pref_iconPackPackage"
-            android:title="@string/icon_pack"
-            android:summary="@string/icon_pack_summary"
-            android:persistent="true" />
-
-        <Preference
-            android:key="pref_icon_badging"
-            android:title="@string/icon_badging_title"
-            android:persistent="false">
-            <intent android:action="android.settings.NOTIFICATION_SETTINGS">
-                <!-- This extra highlights the "Allow icon badges" field in Notification settings -->
-                <extra
-                    android:name=":settings:fragment_args_key"
-                    android:value="notification_badging" />
-            </intent>
-        </Preference>
-
-        <SwitchPreference
-            android:key="pref_adaptiveIcons"
-            android:title="@string/adaptive_icons_title"
-            android:defaultValue="true"
-            android:persistent="true" />
-
-        <ListPreference
-            android:key="pref_iconShape"
-            android:title="@string/adaptive_icon_mask_title"
-            android:entries="@array/adaptive_icon_mask_names"
-            android:entryValues="@array/adaptive_icon_mask_values"
-            android:persistent="true"
-            android:dependency="pref_adaptiveIcons"
-            android:defaultValue="@string/icon_mask_square_string" />
-
-        <SwitchPreference
-            android:key="pref_legacyIcons"
-            android:title="@string/legacy_icons_title"
-            android:defaultValue="false"
-            android:persistent="true"
-            android:dependency="pref_adaptiveIcons" />
-
-        <SwitchPreference
-            android:key="pref_iconShadow"
-            android:title="@string/icon_shadow_title"
-            android:defaultValue="true"
-            android:persistent="true"
-            android:dependency="pref_adaptiveIcons" />
-    </PreferenceCategory>
-
-    <PreferenceCategory
-        android:key="other_category"
-        android:title="@string/other_category_title" >
+        android:key="home_category"
+        android:title="@string/home_category_title" >
 
         <SwitchPreference
             android:key="pref_add_icon_to_home"
@@ -86,103 +34,137 @@
             android:persistent="true" />
 
         <SwitchPreference
-            android:key="pref_showPredictiveApps"
-            android:title="@string/show_predictive_apps_title"
-            android:defaultValue="true"
-            android:persistent="true" />
+            android:key="pref_enable_minus_one"
+            android:title="@string/title_show_google_app"
+            android:summary="@string/pref_show_google_now_summary"
+            android:defaultValue="true" />
 
         <SwitchPreference
-            android:key="pref_left_tab"
-            android:title="@string/left_tab_label"
-            android:summary="@string/left_tab_description"
-            android:persistent="true" />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory
-        android:key="hotseat_category"
-        android:title="@string/hotseat_category_title" >
+            android:key="pref_show_swipeup_arrow"
+            android:title="@string/show_swipeup_arrow"
+            android:summary="@string/show_swipeup_arrow_summary"
+            android:defaultValue="true" />
 
         <SwitchPreference
-            android:key="pref_hotSeat"
-            android:title="@string/show_hotseat_title"
-            android:summary="@string/show_hotseat_summary"
-            android:defaultValue="true"
-            android:persistent="true" />
-
-        <SwitchPreference
-            android:key="pref_searchBar"
-            android:title="@string/show_search_bar_title"
-            android:summary="@string/show_search_bar_summary"
+            android:key="pref_bottom_search_bar"
+            android:title="@string/bottom_search_bar_title"
+            android:summary="@string/bottom_search_bar_summary"
             android:defaultValue="true"
             android:persistent="true" />
 
         <ListPreference
-            android:key="pref_searchBarLocation"
-            android:title="@string/show_search_bar_location_title"
-            android:entries="@array/show_search_bar_location_names"
-            android:entryValues="@array/show_search_bar_location_values"
+            android:key="pref_show_clock_weather"
+            android:title="@string/pref_show_clock_weather"
+            android:summary="%s"
+            android:entries="@array/pref_show_clock_weather_names"
+            android:entryValues="@array/pref_show_clock_weather_values"
+            android:defaultValue=""
+            android:persistent="false" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="grid_category"
+        android:title="@string/grid_category_title">
+        <ListPreference
+            android:key="pref_grid_columns"
+            android:title="@string/number_of_columns_title"
+            android:summary="%s"
+            android:entries="@array/grid_names"
+            android:entryValues="@array/grid_values"
+            android:defaultValue="default"
             android:persistent="true"
-            android:defaultValue="0"
-            android:dependency="pref_searchBar"/>
+            />
+
+        <ListPreference
+            android:key="pref_grid_rows"
+            android:title="@string/number_of_rows_title"
+            android:summary="%s"
+            android:entries="@array/grid_names"
+            android:entryValues="@array/grid_values"
+            android:defaultValue="default"
+            android:persistent="true"
+            />
+
+        <ListPreference
+            android:key="pref_hotseat_icons"
+            android:title="@string/number_of_hotseat_title"
+            android:summary="%s"
+            android:entries="@array/grid_names"
+            android:entryValues="@array/grid_values"
+            android:defaultValue="default"
+            android:persistent="true"
+            />
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="app_drawer_category"
+        android:title="@string/app_drawer_category_title">
 
         <SwitchPreference
-            android:key="pref_hotSeatBgColor"
-            android:title="@string/show_hotseat_bg_color_title"
-            android:summary="@string/show_hotseat_bg_color_summary"
+            android:key="pref_show_predictions"
+            android:title="@string/title_app_suggestions"
+            android:summary="@string/summary_app_suggestions"
+            android:defaultValue="true" />
+
+        <SwitchPreference
+            android:key="pref_top_search_bar"
+            android:title="@string/top_search_bar_title"
+            android:summary="@string/top_search_bar_summary"
             android:defaultValue="true"
+            android:persistent="true" />
+
+        <Preference
+            android:key="hidden_app"
+            android:title="@string/hide_app"
+            android:summary="@string/hide_app_sum"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory
+        android:key="icon_category"
+        android:title="@string/icon_category_title">
+
+        <com.android.launcher3.views.ButtonPreference
+            android:key="pref_icon_badging"
+            android:title="@string/icon_badging_title"
+            android:persistent="false"
+            android:widgetLayout="@layout/notification_pref_warning" >
+            <intent android:action="android.settings.NOTIFICATION_SETTINGS">
+                <extra
+                    android:name=":settings:fragment_args_key"
+                    android:value="notification_badging" />
+            </intent>
+        </com.android.launcher3.views.ButtonPreference>
+
+        <ListPreference
+            android:key="pref_override_icon_shape"
+            android:title="@string/icon_shape_override_label"
+            android:summary="%s"
+            android:entries="@array/icon_shape_override_paths_names"
+            android:entryValues="@array/icon_shape_override_paths_values"
+            android:defaultValue=""
+            android:persistent="false" />
+
+        <com.google.android.apps.nexuslauncher.CustomIconPreference
+            android:key="pref_icon_pack"
+            android:title="@string/pref_icon_pack"
+            android:summary="%s"
+            android:defaultValue=""
             android:persistent="true" />
 
     </PreferenceCategory>
 
     <PreferenceCategory
         android:key="widget_category"
-        android:title="@string/widget_category_title" >
+        android:title="@string/widget_category_title">
 
-        <SwitchPreference
-            android:key="pref_topWidget"
-            android:title="@string/show_top_widget_title"
-            android:summary="@string/show_top_widget_summary"
-            android:defaultValue="true"
-            android:persistent="true" />
-
-        <ListPreference
-            android:key="pref_weatherIconPack"
-            android:title="@string/weather_icon_pack_title"
-            android:persistent="true"
-            android:dependency="pref_topWidget" />
-
-        <SwitchPreference
-            android:key="pref_showEvents"
-            android:title="@string/pref_show_events_title"
-            android:summary="@string/pref_show_events_summary"
-            android:defaultValue="true"
-            android:persistent="true"
-            android:dependency="pref_topWidget" />
-
-        <SwitchPreference
-            android:key="pref_allDayEvents"
-            android:title="@string/pref_allDayEvents_title"
-            android:summary="@string/pref_allDayEvents_summary"
-            android:defaultValue="false"
-            android:persistent="true"
-            android:dependency="pref_showEvents" />
-
-        <ListPreference
-            android:key="pref_showEventsPeriod"
-            android:defaultValue="@string/preferences_widget_days_default"
-            android:title="@string/preferences_widget_days_title"
-            android:entries="@array/preferences_widget_days_labels"
-            android:entryValues="@array/preferences_widget_days_values"
-            android:dependency="pref_showEvents" />
-
-        <SwitchPreference
-            android:key="pref_showToday"
-            android:title="@string/pref_show_today_title"
-            android:summary="@string/pref_show_today_summary"
-            android:defaultValue="true"
-            android:persistent="true"
-            android:dependency="pref_topWidget" />
+        <PreferenceScreen
+            android:key="pref_smartspace"
+            android:title="@string/smartspace_preferences_in_settings"
+            android:summary="@string/smartspace_preferences_in_settings_desc"
+            android:persistent="false" />
 
     </PreferenceCategory>
+
 </PreferenceScreen>

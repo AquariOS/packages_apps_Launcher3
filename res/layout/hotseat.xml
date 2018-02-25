@@ -14,33 +14,14 @@
      limitations under the License.
 -->
 <com.android.launcher3.Hotseat
+    android:theme="@style/HomeScreenElementTheme"
     xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:launcher="http://schemas.android.com/apk/res-auto" >
-    <LinearLayout
-        android:id="@+id/layout_container"
-        android:layout_width="match_parent"
+    xmlns:launcher="http://schemas.android.com/apk/res-auto">
+    <com.android.launcher3.CellLayout
+        android:id="@+id/layout"
+        android:layout_width="wrap_content"
         android:layout_height="match_parent"
-        android:orientation="vertical" >
-
-        <com.android.launcher3.CellLayout
-            android:id="@+id/layout"
-            android:layout_width="match_parent"
-            android:layout_height="@dimen/dynamic_grid_hotseat_height"
-            launcher:containerType="hotseat" />
-
-        <com.android.launcher3.qsb.QsbContainerView
-            android:id="@+id/qsb_container_bottom"
-            android:orientation="vertical"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content" >
-
-            <fragment
-                android:name="com.android.launcher3.qsb.QsbContainerView$QsbFragment"
-                android:tag="qsb_view_hotseat"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="top"/>
-
-        </com.android.launcher3.qsb.QsbContainerView>
-   </LinearLayout>
+        android:layout_gravity="center"
+        launcher:containerType="hotseat" />
+    <include layout="@layout/search_container_hotseat" />
 </com.android.launcher3.Hotseat>

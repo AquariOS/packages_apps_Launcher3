@@ -38,7 +38,7 @@ import com.android.launcher3.graphics.ShadowGenerator;
  */
 public class BadgeRenderer {
 
-    private static final boolean DOTS_ONLY = true;
+    private static final boolean DOTS_ONLY = false;
 
     // The badge sizes are defined as percentages of the app icon size.
     private static final float SIZE_PERCENTAGE = 0.38f;
@@ -107,7 +107,8 @@ public class BadgeRenderer {
         // Lazily load the background with shadow.
         Bitmap backgroundWithShadow = mBackgroundsWithShadow.get(numChars);
         if (backgroundWithShadow == null) {
-            backgroundWithShadow = ShadowGenerator.createPillWithShadow(Color.WHITE, width, mSize);
+            backgroundWithShadow = new ShadowGenerator.Builder(Color.WHITE)
+                    .setupBlurForSize(mSize).createPill(width, mSize);
             mBackgroundsWithShadow.put(numChars, backgroundWithShadow);
         }
         canvas.save(Canvas.MATRIX_SAVE_FLAG);

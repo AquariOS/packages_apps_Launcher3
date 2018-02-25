@@ -32,10 +32,8 @@ import android.graphics.drawable.Drawable;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.util.Log;
-
 import com.android.launcher3.LauncherAppState;
 import com.android.launcher3.Utilities;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.ByteBuffer;
@@ -84,12 +82,12 @@ public class IconNormalizer {
     private final Rect mBounds;
     private final Matrix mMatrix;
 
-    private Paint mPaintIcon;
-    private Canvas mCanvasARGB;
+    private final Paint mPaintIcon;
+    private final Canvas mCanvasARGB;
 
-    private File mDir;
+    private final File mDir;
     private int mFileId;
-    private Random mRandom;
+    private final Random mRandom;
 
     private IconNormalizer(Context context) {
         // Use twice the icon size as maximum size to avoid scaling down twice.
@@ -122,7 +120,6 @@ public class IconNormalizer {
         mPaintMaskShapeOutline.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_OUT));
 
         mMatrix = new Matrix();
-        int[] mPixels = new int[mMaxSize * mMaxSize];
         mAdaptiveIconScale = SCALE_NOT_INITIALIZED;
 
         mDir = context.getExternalFilesDir(null);
@@ -174,7 +171,8 @@ public class IconNormalizer {
 
         boolean isTrans = isTransparentBitmap(mBitmapARGB);
         if (DEBUG) {
-            final File afterFile = new File(mDir, "isShape" + mFileId + "_after_" + isTrans + ".png");
+            final File afterFile = new File(mDir,
+                    "isShape" + mFileId + "_after_" + isTrans + ".png");
             try {
                 mBitmapARGB.compress(Bitmap.CompressFormat.PNG, 100,
                         new FileOutputStream(afterFile));
@@ -210,7 +208,9 @@ public class IconNormalizer {
         float percentageDiffPixels = ((float) sum) / (mBounds.width() * mBounds.height());
         boolean transparentImage = percentageDiffPixels < PIXEL_DIFF_PERCENTAGE_THRESHOLD;
         if (DEBUG) {
-            Log.d(TAG, "Total # pixel that is different (id="+ mFileId + "):" + percentageDiffPixels + "="+ sum + "/" + mBounds.width() * mBounds.height());
+            Log.d(TAG,
+                    "Total # pixel that is different (id=" + mFileId + "):" + percentageDiffPixels
+                            + "=" + sum + "/" + mBounds.width() * mBounds.height());
         }
         return transparentImage;
     }
@@ -229,7 +229,15 @@ public class IconNormalizer {
      *
      * @param outBounds optional rect to receive the fraction distance from each edge.
      */
-    public synchronized float getScale(@NonNull Drawable d, @Nullable RectF outBounds) {
+    public synchronized float getScale(@NonNull Drawable d, @Nullable RectF outBounds,
+            @Nullable Path path, @Nullable boolean[] outMaskShape) {
+        if (Utilities.ATLEAST_OREO && d instanceof AdaptiveIconDrawable &&
+                mAdaptiveIconScale != SCALE_NOT_INITIALIZED) {
+            if (outBounds != null) {
+                outBounds.set(mAdaptiveIconBounds);
+            }
+            return mAdaptiveIconScale;
+        }
         int width = d.getIntrinsicWidth();
         int height = d.getIntrinsicHeight();
         if (width <= 0 || height <= 0) {
@@ -333,22 +341,13 @@ public class IconNormalizer {
                     1 - ((float) mBounds.bottom) / height);
         }
 
+        if (outMaskShape != null && outMaskShape.length > 0) {
+            outMaskShape[0] = isShape(path);
+        }
         float areaScale = area / (width * height);
         // Use sqrt of the final ratio as the images is scaled across both width and height.
         float scale = areaScale > scaleRequired ? (float) Math.sqrt(scaleRequired / areaScale) : 1;
-        return scale;
-    }
-
-    public synchronized float getScaleForAdaptive(@NonNull Drawable d, @Nullable RectF outBounds) {
-        if (Utilities.isAtLeastO() && d instanceof AdaptiveIconDrawable &&
-                mAdaptiveIconScale != SCALE_NOT_INITIALIZED) {
-            if (outBounds != null) {
-                outBounds.set(mAdaptiveIconBounds);
-            }
-            return mAdaptiveIconScale;
-        }
-        float scale = getScale(d, outBounds);
-        if (Utilities.isAtLeastO() && d instanceof AdaptiveIconDrawable &&
+        if (Utilities.ATLEAST_OREO && d instanceof AdaptiveIconDrawable &&
                 mAdaptiveIconScale == SCALE_NOT_INITIALIZED) {
             mAdaptiveIconScale = scale;
             mAdaptiveIconBounds.set(mBounds);

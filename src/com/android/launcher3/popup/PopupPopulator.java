@@ -52,9 +52,9 @@ import java.util.List;
  */
 public class PopupPopulator {
 
-    public static final int MAX_ITEMS = 4;
+    public static final int MAX_SHORTCUTS = 4;
     @VisibleForTesting static final int NUM_DYNAMIC = 2;
-    private static final int MAX_SHORTCUTS_IF_NOTIFICATIONS = 2;
+    public static final int MAX_SHORTCUTS_IF_NOTIFICATIONS = 2;
 
     public enum Item {
         SHORTCUT(R.layout.deep_shortcut, true),
@@ -77,10 +77,7 @@ public class PopupPopulator {
         boolean hasNotifications = notificationKeys.size() > 0;
         int numNotificationItems = hasNotifications ? 1 : 0;
         int numShortcuts = shortcutIds.size();
-        if (hasNotifications && numShortcuts > MAX_SHORTCUTS_IF_NOTIFICATIONS) {
-            numShortcuts = MAX_SHORTCUTS_IF_NOTIFICATIONS;
-        }
-        int numItems = Math.min(MAX_ITEMS, numShortcuts + numNotificationItems)
+        int numItems = Math.min(MAX_SHORTCUTS, numShortcuts) + numNotificationItems
                 + systemShortcuts.size();
         Item[] items = new Item[numItems];
         for (int i = 0; i < numItems; i++) {
@@ -94,15 +91,6 @@ public class PopupPopulator {
         boolean iconsOnly = !shortcutIds.isEmpty();
         for (int i = 0; i < systemShortcuts.size(); i++) {
             items[numItems - 1 - i] = iconsOnly ? Item.SYSTEM_SHORTCUT_ICON : Item.SYSTEM_SHORTCUT;
-        }
-        return items;
-    }
-
-    public static @NonNull Item[] getItemsToPopulate(@NonNull List<SystemShortcut> systemShortcuts) {
-        int numItems = systemShortcuts.size();
-        Item[] items = new Item[numItems];
-        for (int i = 0; i < numItems; i++) {
-            items[i] = Item.SYSTEM_SHORTCUT;
         }
         return items;
     }
@@ -135,12 +123,12 @@ public class PopupPopulator {
     };
 
     /**
-     * Filters the shortcuts so that only MAX_ITEMS or fewer shortcuts are retained.
+     * Filters the shortcuts so that only MAX_SHORTCUTS or fewer shortcuts are retained.
      * We want the filter to include both static and dynamic shortcuts, so we always
      * include NUM_DYNAMIC dynamic shortcuts, if at least that many are present.
      *
      * @param shortcutIdToRemoveFirst An id that should be filtered out first, if any.
-     * @return a subset of shortcuts, in sorted order, with size <= MAX_ITEMS.
+     * @return a subset of shortcuts, in sorted order, with size <= MAX_SHORTCUTS.
      */
     public static List<ShortcutInfoCompat> sortAndFilterShortcuts(
             List<ShortcutInfoCompat> shortcuts, @Nullable String shortcutIdToRemoveFirst) {
@@ -156,27 +144,27 @@ public class PopupPopulator {
         }
 
         Collections.sort(shortcuts, SHORTCUT_RANK_COMPARATOR);
-        if (shortcuts.size() <= MAX_ITEMS) {
+        if (shortcuts.size() <= MAX_SHORTCUTS) {
             return shortcuts;
         }
 
         // The list of shortcuts is now sorted with static shortcuts followed by dynamic
-        // shortcuts. We want to preserve this order, but only keep MAX_ITEMS.
-        List<ShortcutInfoCompat> filteredShortcuts = new ArrayList<>(MAX_ITEMS);
+        // shortcuts. We want to preserve this order, but only keep MAX_SHORTCUTS.
+        List<ShortcutInfoCompat> filteredShortcuts = new ArrayList<>(MAX_SHORTCUTS);
         int numDynamic = 0;
         int size = shortcuts.size();
         for (int i = 0; i < size; i++) {
             ShortcutInfoCompat shortcut = shortcuts.get(i);
             int filteredSize = filteredShortcuts.size();
-            if (filteredSize < MAX_ITEMS) {
-                // Always add the first MAX_ITEMS to the filtered list.
+            if (filteredSize < MAX_SHORTCUTS) {
+                // Always add the first MAX_SHORTCUTS to the filtered list.
                 filteredShortcuts.add(shortcut);
                 if (shortcut.isDynamic()) {
                     numDynamic++;
                 }
                 continue;
             }
-            // At this point, we have MAX_ITEMS already, but they may all be static.
+            // At this point, we have MAX_SHORTCUTS already, but they may all be static.
             // If there are dynamic shortcuts, remove static shortcuts to add them.
             if (shortcut.isDynamic() && numDynamic < NUM_DYNAMIC) {
                 numDynamic++;
@@ -230,7 +218,8 @@ public class PopupPopulator {
                 // doesn't return null (it puts all the widgets in memory).
                 for (int i = 0; i < systemShortcuts.size(); i++) {
                     final SystemShortcut systemShortcut = systemShortcuts.get(i);
-                    uiHandler.post(new UpdateSystemShortcutChild(systemShortcutViews.get(i), systemShortcut, launcher, originalInfo));
+                    uiHandler.post(new UpdateSystemShortcutChild(container,
+                            systemShortcutViews.get(i), systemShortcut, launcher, originalInfo));
                 }
                 uiHandler.post(new Runnable() {
                     @Override
@@ -239,21 +228,6 @@ public class PopupPopulator {
                                 PackageUserKey.fromItemInfo(originalInfo));
                     }
                 });
-            }
-        };
-    }
-
-    public static Runnable createUpdateRunnable(final Launcher launcher,
-            final Handler uiHandler, final SimplePopupContainerWithArrow container,
-            final List<SystemShortcut> systemShortcuts,
-            final List<View> systemShortcutViews) {
-        return new Runnable() {
-            @Override
-            public void run() {
-                for (int i = 0; i < systemShortcuts.size(); i++) {
-                    final SystemShortcut systemShortcut = systemShortcuts.get(i);
-                    uiHandler.post(new UpdateSystemShortcutChild(systemShortcutViews.get(i), systemShortcut, launcher, null));
-                }
             }
         };
     }
@@ -299,13 +273,16 @@ public class PopupPopulator {
 
     /** Updates the system shortcut child based on the given shortcut info. */
     private static class UpdateSystemShortcutChild implements Runnable {
+
+        private final PopupContainerWithArrow mContainer;
         private final View mSystemShortcutChild;
         private final SystemShortcut mSystemShortcutInfo;
         private final Launcher mLauncher;
         private final ItemInfo mItemInfo;
 
-        public UpdateSystemShortcutChild(View systemShortcutChild,
+        public UpdateSystemShortcutChild(PopupContainerWithArrow container, View systemShortcutChild,
                 SystemShortcut systemShortcut, Launcher launcher, ItemInfo originalInfo) {
+            mContainer = container;
             mSystemShortcutChild = systemShortcutChild;
             mSystemShortcutInfo = systemShortcut;
             mLauncher = launcher;
@@ -325,14 +302,12 @@ public class PopupPopulator {
         if (view instanceof DeepShortcutView) {
             // Expanded system shortcut, with both icon and text shown on white background.
             final DeepShortcutView shortcutView = (DeepShortcutView) view;
-            shortcutView.getIconView().setBackground(info.getIcon(context,
-                    android.R.attr.textColorTertiary));
+            shortcutView.getIconView().setBackground(info.getIcon(context));
             shortcutView.getBubbleText().setText(info.getLabel(context));
         } else if (view instanceof ImageView) {
             // Only the system shortcut icon shows on a gray background header.
             final ImageView shortcutIcon = (ImageView) view;
-            shortcutIcon.setImageDrawable(info.getIcon(context,
-                    android.R.attr.textColorHint));
+            shortcutIcon.setImageDrawable(info.getIcon(context));
             shortcutIcon.setContentDescription(info.getLabel(context));
         }
         view.setTag(info);

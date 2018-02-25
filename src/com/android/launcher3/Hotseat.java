@@ -31,10 +31,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewDebug;
-import android.view.ViewGroup;
-import android.view.ViewGroup.LayoutParams;
 import android.widget.FrameLayout;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.android.launcher3.config.FeatureFlags;
@@ -43,7 +40,6 @@ import com.android.launcher3.logging.UserEventDispatcher;
 import com.android.launcher3.userevent.nano.LauncherLogProto.ContainerType;
 import com.android.launcher3.userevent.nano.LauncherLogProto.Target;
 import com.android.launcher3.util.Themes;
-import com.android.launcher3.Utilities;
 
 public class Hotseat extends FrameLayout
         implements UserEventDispatcher.LogContainerProvider {
@@ -60,10 +56,6 @@ public class Hotseat extends FrameLayout
     @ViewDebug.ExportedProperty(category = "launcher")
     private ColorDrawable mBackground;
     private ValueAnimator mBackgroundColorAnimator;
-    private View mQsbContainer;
-    private LinearLayout mContentContainer;
-    private boolean mEnableDynamicBackgroundColor;
-    private int mDynamicBackgroundColor;
 
     public Hotseat(Context context) {
         this(context, null);
@@ -80,17 +72,13 @@ public class Hotseat extends FrameLayout
         mBackgroundColor = ColorUtils.setAlphaComponent(
                 Themes.getAttrColor(context, android.R.attr.colorPrimary), 0);
         mBackground = new ColorDrawable(mBackgroundColor);
-        mDynamicBackgroundColor = mBackgroundColor;
-        mEnableDynamicBackgroundColor = Utilities.isShowHotseatBgColor(context);
-        setBackground(mBackground);
+        if (!FeatureFlags.LAUNCHER3_GRADIENT_ALL_APPS) {
+            setBackground(mBackground);
+        }
     }
 
-    public CellLayout getCellLayout() {
+    public CellLayout getLayout() {
         return mContent;
-    }
-
-    public LinearLayout getLayoutContainer() {
-        return mContentContainer;
     }
 
     /**
@@ -132,13 +120,6 @@ public class Hotseat extends FrameLayout
         } else {
             mContent.setGridSize(grid.inv.numHotseatIcons, 1);
         }
-        mQsbContainer = findViewById(R.id.qsb_container_bottom);
-        mContentContainer = (LinearLayout) findViewById(R.id.layout_container);
-
-        boolean topSearchBar = Utilities.getSearchBarLocation(getContext()) == 1;
-        if (topSearchBar) {
-            updateSearchBarLocation();
-        }
 
         resetLayout();
     }
@@ -168,9 +149,7 @@ public class Hotseat extends FrameLayout
             allAppsButton.setOnKeyListener(new HotseatIconKeyEventListener());
             if (mLauncher != null) {
                 mLauncher.setAllAppsButton(allAppsButton);
-                allAppsButton.setOnTouchListener(mLauncher.getHapticFeedbackTouchListener());
                 allAppsButton.setOnClickListener(mLauncher);
-                allAppsButton.setOnLongClickListener(mLauncher);
                 allAppsButton.setOnFocusChangeListener(mLauncher.mFocusHandler);
             }
 
@@ -200,9 +179,12 @@ public class Hotseat extends FrameLayout
     }
 
     public void updateColor(ExtractedColors extractedColors, boolean animate) {
+        if (FeatureFlags.LAUNCHER3_GRADIENT_ALL_APPS) {
+            // not hotseat visible
+            return;
+        }
         if (!mHasVerticalHotseat) {
-            mDynamicBackgroundColor = extractedColors.getColor(ExtractedColors.HOTSEAT_INDEX, Color.TRANSPARENT);
-            int color = mEnableDynamicBackgroundColor ? mDynamicBackgroundColor : Color.TRANSPARENT;
+            int color = extractedColors.getColor(ExtractedColors.HOTSEAT_INDEX);
             if (mBackgroundColorAnimator != null) {
                 mBackgroundColorAnimator.cancel();
             }
@@ -239,30 +221,5 @@ public class Hotseat extends FrameLayout
 
     public int getBackgroundDrawableColor() {
         return mBackgroundColor;
-    }
-
-    public View getQsbContainer() {
-        return mQsbContainer;
-    }
-
-    public void setShowBackgroundColor(boolean value) {
-        mEnableDynamicBackgroundColor = value;
-        int color = mEnableDynamicBackgroundColor ? mDynamicBackgroundColor : Color.TRANSPARENT;
-        setBackgroundColor(color);
-        mBackgroundColor = color;
-    }
-
-    public void updateSearchBarLocation() {
-        if (!mHasVerticalHotseat) {
-            boolean topSearchBar = Utilities.getSearchBarLocation(getContext()) == 1;
-            mContentContainer.removeAllViews();
-            if (topSearchBar) {
-                mContentContainer.addView(mQsbContainer);
-                mContentContainer.addView(mContent);
-            } else {
-                mContentContainer.addView(mContent);
-                mContentContainer.addView(mQsbContainer);
-            }
-        }
     }
 }
