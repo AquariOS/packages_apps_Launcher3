@@ -33,6 +33,7 @@ import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
 import android.content.ComponentCallbacks2;
 import android.content.ComponentName;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.DialogInterface;
@@ -42,10 +43,15 @@ import android.content.IntentSender;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.content.pm.ActivityInfo;
+import android.content.pm.LauncherActivityInfo;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
+import android.content.res.Resources;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
 import android.graphics.Point;
 import android.graphics.Rect;
+import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -62,6 +68,7 @@ import android.text.SpannableStringBuilder;
 import android.text.TextUtils;
 import android.text.method.TextKeyListener;
 import android.util.Log;
+import android.util.Pair;
 import android.view.Display;
 import android.view.HapticFeedbackConstants;
 import android.view.KeyEvent;
@@ -71,6 +78,7 @@ import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.View.OnLongClickListener;
 import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
@@ -79,6 +87,14 @@ import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.view.animation.OvershootInterpolator;
 import android.view.inputmethod.InputMethodManager;
+import android.view.ContextThemeWrapper;
+import android.widget.AdapterView;
+import android.widget.Advanceable;
+import android.widget.ArrayAdapter;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.ListPopupWindow;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.android.launcher3.DropTarget.DragObject;
@@ -127,6 +143,7 @@ import com.android.launcher3.util.MultiHashMap;
 import com.android.launcher3.util.PackageManagerHelper;
 import com.android.launcher3.util.PackageUserKey;
 import com.android.launcher3.util.PendingRequestArgs;
+import com.android.launcher3.util.CustomSettingsObserver;
 import com.android.launcher3.util.SystemUiController;
 import com.android.launcher3.util.TestingUtils;
 import com.android.launcher3.util.Themes;
@@ -337,6 +354,13 @@ public class Launcher extends BaseActivity
     public ViewGroupFocusHelper mFocusHandler;
     private boolean mRotationEnabled = false;
 
+    // icon pack
+    private AlertDialog mIconPackDialog;
+    private EditText mEditText;
+    private ImageView mPackageIcon;
+    private IconsHandler mIconsHandler;
+    private View mIconPackView;
+
     @Thunk void setOrientation() {
         if (mRotationEnabled) {
             unlockScreenOrientation(true);
@@ -347,6 +371,21 @@ public class Launcher extends BaseActivity
     }
 
     private RotationPrefChangeHandler mRotationPrefChangeHandler;
+
+    private int mSystemTheme = 0;
+    private SystemThemeObserver mSettingsObserver;
+
+    private class SystemThemeObserver extends CustomSettingsObserver.System {
+        public SystemThemeObserver(ContentResolver resolver) {
+            super(resolver);
+        }
+
+        @Override
+        public void onSettingChanged(int keySettingInt) {
+            mSystemTheme = keySettingInt;
+            onThemeChanged();
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -374,7 +413,13 @@ public class Launcher extends BaseActivity
 
         WallpaperColorInfo wallpaperColorInfo = WallpaperColorInfo.getInstance(this);
         wallpaperColorInfo.setOnThemeChangeListener(this);
-        overrideTheme(wallpaperColorInfo.isDark(), wallpaperColorInfo.supportsDarkText());
+
+        mSettingsObserver = new SystemThemeObserver(this.getContentResolver());
+        mSettingsObserver.register("system_ui_theme");
+        mSystemTheme = mSettingsObserver.getSettingInt();
+        boolean forceDark = mSystemTheme == 2;
+        boolean forceLight = mSystemTheme == 1;
+        overrideTheme(wallpaperColorInfo.isDark(), wallpaperColorInfo.supportsDarkText(), forceDark, forceLight);
 
         super.onCreate(savedInstanceState);
 
@@ -426,6 +471,8 @@ public class Launcher extends BaseActivity
                 .addAccessibilityStateChangeListener(this);
 
         lockAllApps();
+
+        mIconsHandler = IconCache.getIconsHandler(this);
 
         restoreState(savedInstanceState);
 
@@ -494,8 +541,8 @@ public class Launcher extends BaseActivity
         recreate();
     }
 
-    protected void overrideTheme(boolean isDark, boolean supportsDarkText) {
-        if (isDark) {
+    protected void overrideTheme(boolean isDark, boolean supportsDarkText, boolean forceDark, boolean forceLight) {
+        if (isDark || forceDark) {
             setTheme(R.style.LauncherThemeDark);
         } else if (supportsDarkText) {
             setTheme(R.style.LauncherThemeDarkText);
@@ -525,12 +572,9 @@ public class Launcher extends BaseActivity
     }
 
     private void loadExtractedColorsAndColorItems() {
-        // TODO: do this in pre-N as well, once the extraction part is complete.
-        if (Utilities.ATLEAST_NOUGAT) {
-            mExtractedColors.load(this);
-            mHotseat.updateColor(mExtractedColors, !mPaused);
-            mWorkspace.getPageIndicator().updateColor(mExtractedColors);
-        }
+        mExtractedColors.load(this);
+        mHotseat.updateColor(mExtractedColors, !mPaused);
+        mWorkspace.getPageIndicator().updateColor(mExtractedColors);
     }
 
     private LauncherCallbacks mLauncherCallbacks;
@@ -891,6 +935,9 @@ public class Launcher extends BaseActivity
     @Override
     protected void onStop() {
         super.onStop();
+
+        getWorkspace().switchTouchListeners(false);
+
         FirstFrameAnimatorHelper.setIsVisible(false);
 
         if (mLauncherCallbacks != null) {
@@ -960,6 +1007,7 @@ public class Launcher extends BaseActivity
         if (mOnResumeState == State.WORKSPACE) {
             showWorkspace(false);
         } else if (mOnResumeState == State.APPS) {
+            mWorkspace.setVisibility(View.INVISIBLE);
             boolean launchedFromApp = (mWaitingForResume != null);
             // Don't update the predicted apps if the user is returning to launcher in the apps
             // view after launching an app, as they may be depending on the UI to be static to
@@ -1047,6 +1095,9 @@ public class Launcher extends BaseActivity
         // Refresh shortcuts if the permission changed.
         mModel.refreshShortcutsIfRequired();
 
+        if (mAllAppsController.isTransitioning()) {
+            mAppsView.setVisibility(View.VISIBLE);
+        }
         if (shouldShowDiscoveryBounce()) {
             mAllAppsController.showDiscoveryBounce();
         }
@@ -1054,6 +1105,9 @@ public class Launcher extends BaseActivity
             mLauncherCallbacks.onResume();
         }
 
+        if (!isWorkspaceLoading()) {
+            getWorkspace().switchTouchListeners(true);
+        }
     }
 
     @Override
@@ -1065,6 +1119,8 @@ public class Launcher extends BaseActivity
         mPaused = true;
         mDragController.cancelDrag();
         mDragController.resetLastGestureUpTime();
+
+        getWorkspace().switchTouchListeners(false);
 
         // We call onHide() aggressively. The custom content callbacks should be able to
         // debounce excess onHide calls.
@@ -1323,6 +1379,14 @@ public class Launcher extends BaseActivity
     private void setupOverviewPanel() {
         mOverviewPanel = (ViewGroup) findViewById(R.id.overview_panel);
 
+        // Long-clicking buttons in the overview panel does the same thing as clicking them.
+        OnLongClickListener performClickOnLongClick = new OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View v) {
+                return v.performClick();
+            }
+        };
+
         // Bind wallpaper button actions
         View wallpaperButton = findViewById(R.id.wallpaper_button);
         new OverviewButtonClickListener(ControlType.WALLPAPER_BUTTON) {
@@ -1364,6 +1428,7 @@ public class Launcher extends BaseActivity
      */
     public void setAllAppsButton(View allAppsButton) {
         mAllAppsButton = allAppsButton;
+        mAllAppsButton.setVisibility(showSwipeUpIndicator() ? View.VISIBLE : View.INVISIBLE);
     }
 
     public View getStartViewForAllAppsRevealAnimation() {
@@ -1727,7 +1792,9 @@ public class Launcher extends BaseActivity
             // If we are already on home, then just animate back to the workspace,
             // otherwise, just wait until onResume to set the state back to Workspace
             if (alreadyOnHome) {
-                showWorkspace(true);
+                if (!mAllAppsController.isDragging()) {
+                    showWorkspace(true);
+                }
             } else {
                 mOnResumeState = State.WORKSPACE;
             }
@@ -1747,6 +1814,10 @@ public class Launcher extends BaseActivity
             // Reset the widgets view
             if (!alreadyOnHome && mWidgetsView != null) {
                 mWidgetsView.scrollToTop();
+            }
+
+            if (mIconPackDialog != null) {
+                mIconPackDialog.dismiss();
             }
 
             if (mLauncherCallbacks != null) {
@@ -1827,6 +1898,7 @@ public class Launcher extends BaseActivity
         super.onDestroy();
 
         unregisterReceiver(mReceiver);
+        getWorkspace().switchTouchListeners(false);
         mWorkspace.removeCallbacks(mBuildLayersRunnable);
         mWorkspace.removeFolderListeners();
 
@@ -1855,6 +1927,7 @@ public class Launcher extends BaseActivity
                 .removeAccessibilityStateChangeListener(this);
 
         WallpaperColorInfo.getInstance(this).setOnThemeChangeListener(null);
+        mSettingsObserver.unregister();
 
         LauncherAnimUtils.onDestroyActivity();
 
@@ -2508,10 +2581,13 @@ public class Launcher extends BaseActivity
                 .putExtra(Utilities.EXTRA_WALLPAPER_OFFSET, offset);
 
         String pickerPackage = getString(R.string.wallpaper_picker_package);
-        boolean hasTargetPackage = !TextUtils.isEmpty(pickerPackage);
-        if (hasTargetPackage) {
-            intent.setPackage(pickerPackage);
-        }
+        boolean hasTargetPackage = /*!TextUtils.isEmpty(pickerPackage);
+        try {
+            if (hasTargetPackage && getPackageManager().getApplicationInfo(pickerPackage, 0).enabled) {
+                intent.setPackage(pickerPackage);
+            }
+        } catch (PackageManager.NameNotFoundException ex) {
+        }*/false;
 
         intent.setSourceBounds(getViewBounds(v));
         try {
@@ -2534,6 +2610,7 @@ public class Launcher extends BaseActivity
                 .setPackage(getPackageName());
         intent.setSourceBounds(getViewBounds(v));
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        showWorkspace(false);
         startActivity(intent, getActivityLaunchOptions(v));
     }
 
@@ -2602,7 +2679,7 @@ public class Launcher extends BaseActivity
                     String id = ((ShortcutInfo) info).getDeepShortcutId();
                     String packageName = intent.getPackage();
                     DeepShortcutManager.getInstance(this).startShortcut(
-                            packageName, id, intent.getSourceBounds(), optsBundle, info.user);
+                            packageName, id, intent, optsBundle, info.user);
                 } else {
                     // Could be launching some bookkeeping activity
                     startActivity(intent, optsBundle);
@@ -3196,12 +3273,12 @@ public class Launcher extends BaseActivity
     @Override
     public void bindScreens(ArrayList<Long> orderedScreenIds) {
         // Make sure the first screen is always at the start.
-        if (FeatureFlags.QSB_ON_FIRST_SCREEN &&
+        if (FeatureFlags.QSB_ON_FIRST_SCREEN && Utilities.qsbEnabled(getApplicationContext()) &&
                 orderedScreenIds.indexOf(Workspace.FIRST_SCREEN_ID) != 0) {
             orderedScreenIds.remove(Workspace.FIRST_SCREEN_ID);
             orderedScreenIds.add(0, Workspace.FIRST_SCREEN_ID);
             LauncherModel.updateWorkspaceScreenOrder(this, orderedScreenIds);
-        } else if (!FeatureFlags.QSB_ON_FIRST_SCREEN && orderedScreenIds.isEmpty()) {
+        } else if (!(FeatureFlags.QSB_ON_FIRST_SCREEN && Utilities.qsbEnabled(getApplicationContext())) && orderedScreenIds.isEmpty()) {
             // If there are no screens, we need to have an empty screen
             mWorkspace.addExtraEmptyScreen();
         }
@@ -3224,7 +3301,7 @@ public class Launcher extends BaseActivity
         int count = orderedScreenIds.size();
         for (int i = 0; i < count; i++) {
             long screenId = orderedScreenIds.get(i);
-            if (!FeatureFlags.QSB_ON_FIRST_SCREEN || screenId != Workspace.FIRST_SCREEN_ID) {
+            if (!(FeatureFlags.QSB_ON_FIRST_SCREEN && Utilities.qsbEnabled(getApplicationContext())) || screenId != Workspace.FIRST_SCREEN_ID) {
                 // No need to bind the first screen, as its always bound.
                 mWorkspace.insertNewWorkspaceScreenBeforeEmptyScreen(screenId);
             }
@@ -3899,6 +3976,79 @@ public class Launcher extends BaseActivity
         return mState == State.WORKSPACE && !mSharedPrefs.getBoolean(APPS_VIEW_SHOWN, false) && !um.isDemoUser();
     }
 
+    public void startEdit(final ItemInfo info, final ComponentName component) {
+        LauncherActivityInfo app = LauncherAppsCompat.getInstance(this)
+                .resolveActivity(info.getIntent(), info.user);
+        mIconPackView = getLayoutInflater().inflate(R.layout.edit_dialog, null);
+        mPackageIcon = (ImageView) mIconPackView.findViewById(R.id.package_icon);
+        mEditText = (EditText) mIconPackView.findViewById(R.id.editText);
+        mEditText.setText(mIconCache.getCacheEntry(app).title);
+        mEditText.setSelection(mEditText.getText().length());
+
+        final Resources res = getResources();
+
+        final Bitmap appliedIcon = mIconsHandler.getAppliedIconBitmap(this, mIconCache, app, info);
+        mPackageIcon.setImageBitmap(appliedIcon);
+
+        final int popupWidth = getResources().getDimensionPixelSize(R.dimen.edit_dialog_min_width);
+        Pair<List<String>, List<String>> iconPacks = mIconsHandler.getAllIconPacks();
+        ListPopupWindow listPopupWindow = new ListPopupWindow(new ContextThemeWrapper(this, R.style.AlertDialogCustom));
+        listPopupWindow.setAdapter(new ArrayAdapter(new ContextThemeWrapper(this, R.style.AlertDialogCustom),
+                R.layout.edit_dialog_item, iconPacks.second));
+        listPopupWindow.setWidth(popupWidth);
+        listPopupWindow.setAnchorView(mPackageIcon);
+        listPopupWindow.setModal(true);
+        listPopupWindow.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> parent, View v, int position, long id) {
+                Intent intent = new Intent(Launcher.this, ChooseIconActivity.class);
+                ChooseIconActivity.setItemInfo(info);
+                intent.putExtra("app_package", component.getPackageName());
+                intent.putExtra("app_label", mEditText.getText().toString());
+                intent.putExtra("icon_pack_package", iconPacks.first.get(position));
+                Launcher.this.startActivity(intent);
+                mIconPackDialog.dismiss();
+            }
+        });
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(new ContextThemeWrapper(this, R.style.AlertDialogCustom))
+                .setView(mIconPackView)
+                .setTitle(getString(R.string.edit_app))
+                .setOnDismissListener(new DialogInterface.OnDismissListener() {
+                    @Override
+                    public void onDismiss(DialogInterface dialog) {
+                        // reload workspace
+                        LauncherAppState.getInstance(getApplicationContext()).getModel().forceReload();
+                    }
+                })
+                .setPositiveButton(R.string.ok,
+                    new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+                            mIconCache.addCustomInfoToDataBase(new BitmapDrawable(res, appliedIcon), info, mEditText.getText());
+                            mIconPackDialog.dismiss();
+                        }
+                })
+                .setNeutralButton(R.string.reset_icon,
+                        new DialogInterface.OnClickListener() {
+                            @Override
+                            public void onClick(DialogInterface dialog, int which) {
+                                mIconCache.addCustomInfoToDataBase(mIconsHandler.getResetIconDrawable(Launcher.this, app, info), info, null);
+                                mIconPackDialog.dismiss();
+                            }
+                });
+        mIconPackDialog = builder.create();
+        mPackageIcon.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (!iconPacks.second.isEmpty()) {
+                    listPopupWindow.show();
+                }
+            }
+        });
+        mIconPackDialog.show();
+    }
+
     protected void moveWorkspaceToDefaultScreen() {
         mWorkspace.moveToDefaultScreen(false);
     }
@@ -4026,6 +4176,10 @@ public class Launcher extends BaseActivity
         return ((Launcher) ((ContextWrapper) context).getBaseContext());
     }
 
+    public boolean showSwipeUpIndicator() {
+        return Utilities.showSwipeUpIndicator(getApplicationContext());
+    }
+
     private class RotationPrefChangeHandler implements OnSharedPreferenceChangeListener {
 
         @Override
@@ -4034,6 +4188,9 @@ public class Launcher extends BaseActivity
             if (Utilities.ALLOW_ROTATION_PREFERENCE_KEY.equals(key)) {
                 // Recreate the activity so that it initializes the rotation preference again.
                 recreate();
+            }
+            if (Utilities.KEY_SHOW_SWIPEUP_ARROW.equals(key)) {
+                mAllAppsButton.setVisibility(showSwipeUpIndicator() ? View.VISIBLE : View.INVISIBLE);
             }
         }
     }

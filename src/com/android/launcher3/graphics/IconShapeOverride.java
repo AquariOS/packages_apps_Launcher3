@@ -62,11 +62,6 @@ public class IconShapeOverride {
         if (!Utilities.ATLEAST_OREO) {
             return false;
         }
-        // Only supported when developer settings is enabled
-        if (Settings.Global.getInt(context.getContentResolver(),
-                Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 1) {
-            return false;
-        }
 
         try {
             if (getSystemResField().get(null) != Resources.getSystem()) {
@@ -172,6 +167,16 @@ public class IconShapeOverride {
         }
     }
 
+    public static void refreshIcons(Context context) {
+        ProgressDialog.show(context,
+                null /* title */,
+                context.getString(R.string.icon_shape_override_progress),
+                true /* indeterminate */,
+                false /* cancelable */);
+        new LooperExecutor(LauncherModel.getWorkerLooper()).execute(
+                new OverrideApplyHandler(context, "refreshing"));
+    }
+
     private static class OverrideApplyHandler implements Runnable {
 
         private final Context mContext;
@@ -184,8 +189,11 @@ public class IconShapeOverride {
 
         @Override
         public void run() {
-            // Synchronously write the preference.
-            getDevicePrefs(mContext).edit().putString(KEY_PREFERENCE, mValue).commit();
+            if (!mValue.equals("refreshing")) {
+                // Synchronously write the preference.
+                getDevicePrefs(mContext).edit().putString(KEY_PREFERENCE, mValue).commit();
+            }
+
             // Clear the icon cache.
             LauncherAppState.getInstance(mContext).getIconCache().clear();
 

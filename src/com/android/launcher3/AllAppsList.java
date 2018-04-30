@@ -57,10 +57,13 @@ public class AllAppsList {
 
     private AppFilter mAppFilter;
 
+    private Context mContext;
+
     /**
      * Boring constructor.
      */
-    public AllAppsList(IconCache iconCache, AppFilter appFilter) {
+    public AllAppsList(Context context, IconCache iconCache, AppFilter appFilter) {
+        mContext = context;
         mIconCache = iconCache;
         mAppFilter = appFilter;
     }
@@ -72,7 +75,7 @@ public class AllAppsList {
      * If the app is already in the list, doesn't add it.
      */
     public void add(AppInfo info, LauncherActivityInfo activityInfo) {
-        if (!mAppFilter.shouldShowApp(info.componentName)) {
+        if (mAppFilter != null && !mAppFilter.shouldShowApp(info.componentName.getPackageName(), mContext, false)) {
             return;
         }
         if (findAppInfo(info.componentName, info.user) != null) {
@@ -217,6 +220,25 @@ public class AllAppsList {
         }
     }
 
+    /**
+     * Add and remove icons for this package, depending on visibility.
+     */
+    public void reloadPackages(Context context, UserHandle user) {
+        for (final LauncherActivityInfo info : LauncherAppsCompat.getInstance(context).getActivityList(null, user)) {
+            AppInfo applicationInfo = findAppInfo(info.getComponentName(), user);
+            if (applicationInfo == null) {
+                add(new AppInfo(context, info, user), info);
+            }
+        }
+
+        for (int i = data.size() - 1; i >= 0; i--) {
+            final AppInfo applicationInfo = data.get(i);
+            if (user.equals(applicationInfo.user) && !mAppFilter.shouldShowApp(applicationInfo.componentName.getPackageName(), mContext, false)) {
+                removed.add(applicationInfo);
+                data.remove(i);
+            }
+        }
+    }
 
     /**
      * Returns whether <em>apps</em> contains <em>component</em>.

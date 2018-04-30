@@ -99,6 +99,11 @@ public class LauncherIcons {
      */
     public static Bitmap createBadgedIconBitmap(
             Drawable icon, UserHandle user, Context context, int iconAppTargetSdk) {
+        return createBadgedIconBitmap(icon, user, context, iconAppTargetSdk, false);
+    }
+
+    public static Bitmap createBadgedIconBitmap(
+            Drawable icon, UserHandle user, Context context, int iconAppTargetSdk, boolean forceWrap) {
 
         IconNormalizer normalizer;
         float scale = 1f;
@@ -107,11 +112,13 @@ public class LauncherIcons {
             if (Utilities.ATLEAST_OREO && iconAppTargetSdk >= Build.VERSION_CODES.O) {
                 boolean[] outShape = new boolean[1];
                 AdaptiveIconDrawable dr = (AdaptiveIconDrawable)
-                        context.getDrawable(R.drawable.adaptive_icon_drawable_wrapper).mutate();
+                        context.getDrawable(Utilities.shapeOverrideDarkBg(context)
+                        ? R.drawable.adaptive_icon_drawable_wrapper_dark
+                        : R.drawable.adaptive_icon_drawable_wrapper).mutate();
                 dr.setBounds(0, 0, 1, 1);
                 scale = normalizer.getScale(icon, null, dr.getIconMask(), outShape);
-                if (FeatureFlags.LEGACY_ICON_TREATMENT &&
-                        !outShape[0]){
+                if ((forceWrap || isDefaultIconPack(context) || FeatureFlags.LEGACY_ICON_TREATMENT)
+                        && !outShape[0]){
                     Drawable wrappedIcon = wrapToAdaptiveIconDrawable(context, icon, scale);
                     if (wrappedIcon != icon) {
                         icon = wrappedIcon;
@@ -161,7 +168,9 @@ public class LauncherIcons {
             if (Utilities.ATLEAST_OREO && iconAppTargetSdk >= Build.VERSION_CODES.O) {
                 boolean[] outShape = new boolean[1];
                 AdaptiveIconDrawable dr = (AdaptiveIconDrawable)
-                        context.getDrawable(R.drawable.adaptive_icon_drawable_wrapper).mutate();
+                        context.getDrawable(Utilities.shapeOverrideDarkBg(context)
+                        ? R.drawable.adaptive_icon_drawable_wrapper_dark
+                        : R.drawable.adaptive_icon_drawable_wrapper).mutate();
                 dr.setBounds(0, 0, 1, 1);
                 scale = normalizer.getScale(icon, iconBounds, dr.getIconMask(), outShape);
                 if (Utilities.ATLEAST_OREO && FeatureFlags.LEGACY_ICON_TREATMENT &&
@@ -296,14 +305,16 @@ public class LauncherIcons {
      * create AdaptiveIconDrawable.
      */
     static Drawable wrapToAdaptiveIconDrawable(Context context, Drawable drawable, float scale) {
-        if (!(FeatureFlags.LEGACY_ICON_TREATMENT && Utilities.ATLEAST_OREO)) {
+        if (!Utilities.ATLEAST_OREO) {
             return drawable;
         }
 
         try {
             if (!(drawable instanceof AdaptiveIconDrawable)) {
                 AdaptiveIconDrawable iconWrapper = (AdaptiveIconDrawable)
-                        context.getDrawable(R.drawable.adaptive_icon_drawable_wrapper).mutate();
+                        context.getDrawable(Utilities.shapeOverrideDarkBg(context)
+                        ? R.drawable.adaptive_icon_drawable_wrapper_dark
+                        : R.drawable.adaptive_icon_drawable_wrapper).mutate();
                 FixedScaleDrawable fsd = ((FixedScaleDrawable) iconWrapper.getForeground());
                 fsd.setDrawable(drawable);
                 fsd.setScale(scale);
@@ -313,6 +324,10 @@ public class LauncherIcons {
             return drawable;
         }
         return drawable;
+    }
+
+    public static boolean isDefaultIconPack(Context context) {
+        return IconCache.getIconsHandler(context).isDefaultIconPack();
     }
 
     public static Bitmap createShortcutIcon(ShortcutInfoCompat shortcutInfo, Context context) {

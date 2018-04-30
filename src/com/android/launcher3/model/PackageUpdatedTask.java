@@ -69,6 +69,8 @@ public class PackageUpdatedTask extends BaseModelUpdateTask {
     public static final int OP_SUSPEND = 5; // package suspended
     public static final int OP_UNSUSPEND = 6; // package unsuspended
     public static final int OP_USER_AVAILABILITY_CHANGE = 7; // user available/unavailable
+    public static final int OP_RELOAD = 8; // clears cache
+    public static final int OP_UPDATE_KEEP_ICON = 9;
 
     private final int mOp;
     private final UserHandle mUser;
@@ -118,6 +120,16 @@ public class PackageUpdatedTask extends BaseModelUpdateTask {
                 // Since package was just updated, the target must be available now.
                 flagOp = FlagOp.removeFlag(ShortcutInfo.FLAG_DISABLED_NOT_AVAILABLE);
                 break;
+            case OP_UPDATE_KEEP_ICON:
+                for (int i = 0; i < N; i++) {
+                    if (DEBUG) Log.d(TAG, "mAllAppsList.updatePackage " + packages[i]);
+                    //iconCache.updateIconsForPkg(packages[i], mUser);
+                    appsList.updatePackage(context, packages[i], mUser);
+                    app.getWidgetCache().removePackage(packages[i], mUser);
+                }
+                // Since package was just updated, the target must be available now.
+                flagOp = FlagOp.removeFlag(ShortcutInfo.FLAG_DISABLED_NOT_AVAILABLE);
+                break;
             case OP_REMOVE: {
                 for (int i = 0; i < N; i++) {
                     iconCache.removeIconsForPkg(packages[i], mUser);
@@ -148,6 +160,10 @@ public class PackageUpdatedTask extends BaseModelUpdateTask {
                 matcher = ItemInfoMatcher.ofUser(mUser);
                 appsList.updateDisabledFlags(matcher, flagOp);
                 break;
+            case OP_RELOAD:
+                if (DEBUG) Log.d(TAG, "mAllAppsList.reloadPackages");
+                appsList.reloadPackages(context, mUser);
+                break;
         }
 
         final ArrayList<AppInfo> addedOrModified = new ArrayList<>();
@@ -160,7 +176,7 @@ public class PackageUpdatedTask extends BaseModelUpdateTask {
         appsList.removed.clear();
 
         final ArrayMap<ComponentName, AppInfo> addedOrUpdatedApps = new ArrayMap<>();
-        if (!addedOrModified.isEmpty()) {
+        if (!addedOrModified.isEmpty() || mOp == OP_UPDATE || mOp == OP_UPDATE_KEEP_ICON) {
             scheduleCallbackTask(new CallbackTask() {
                 @Override
                 public void execute(Callbacks callbacks) {
@@ -180,7 +196,7 @@ public class PackageUpdatedTask extends BaseModelUpdateTask {
             final ArrayList<LauncherAppWidgetInfo> widgets = new ArrayList<>();
 
             // For system apps, package manager send OP_UPDATE when an app is enabled.
-            final boolean isNewApkAvailable = mOp == OP_ADD || mOp == OP_UPDATE;
+            final boolean isNewApkAvailable = mOp == OP_ADD || mOp == OP_UPDATE || mOp == OP_UPDATE_KEEP_ICON;
             synchronized (dataModel) {
                 for (ItemInfo info : dataModel.itemsIdMap) {
                     if (info instanceof ShortcutInfo && mUser.equals(info.user)) {
@@ -301,7 +317,7 @@ public class PackageUpdatedTask extends BaseModelUpdateTask {
 
             // No need to update the removedComponents as
             // removedPackages is a super-set of removedComponents
-        } else if (mOp == OP_UPDATE) {
+        } else if (mOp == OP_UPDATE || mOp == OP_UPDATE_KEEP_ICON) {
             // Mark disabled packages in the broadcast to be removed
             final LauncherAppsCompat launcherApps = LauncherAppsCompat.getInstance(context);
             for (int i=0; i<N; i++) {
@@ -339,7 +355,7 @@ public class PackageUpdatedTask extends BaseModelUpdateTask {
         // Notify launcher of widget update. From marshmallow onwards we use AppWidgetHost to
         // get widget update signals.
         if (!Utilities.ATLEAST_MARSHMALLOW &&
-                (mOp == OP_ADD || mOp == OP_REMOVE || mOp == OP_UPDATE)) {
+                (mOp == OP_ADD || mOp == OP_REMOVE || mOp == OP_UPDATE || mOp == OP_UPDATE_KEEP_ICON)) {
             scheduleCallbackTask(new CallbackTask() {
                 @Override
                 public void execute(Callbacks callbacks) {

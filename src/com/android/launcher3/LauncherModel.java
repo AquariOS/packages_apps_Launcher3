@@ -29,10 +29,12 @@ import android.os.HandlerThread;
 import android.os.Looper;
 import android.os.Process;
 import android.os.UserHandle;
+import android.preference.PreferenceManager;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
+import android.widget.Toast;
 
 import com.android.launcher3.compat.LauncherAppsCompat;
 import com.android.launcher3.compat.PackageInstallerCompat.PackageInstallInfo;
@@ -162,7 +164,7 @@ public class LauncherModel extends BroadcastReceiver
 
     LauncherModel(LauncherAppState app, IconCache iconCache, AppFilter appFilter) {
         mApp = app;
-        mBgAllAppsList = new AllAppsList(iconCache, appFilter);
+        mBgAllAppsList = new AllAppsList(app.getContext(), iconCache, appFilter);
     }
 
     /** Runs the specified runnable immediately if called from the worker thread, otherwise it is
@@ -313,13 +315,31 @@ public class LauncherModel extends BroadcastReceiver
 
     @Override
     public void onPackageChanged(String packageName, UserHandle user) {
-        int op = PackageUpdatedTask.OP_UPDATE;
+        IconsHandler handler = IconCache.getIconsHandler(mApp.getContext());
+
+        int op = handler.isDefaultIconPack() ? PackageUpdatedTask.OP_UPDATE : PackageUpdatedTask.OP_UPDATE_KEEP_ICON;
         enqueueModelUpdateTask(new PackageUpdatedTask(op, user, packageName));
+
+        final String currentIconPack = handler.getCurrentIconPackPackageName();
+        if (packageName.equals(currentIconPack)) {
+            notifyUserIconPackChanged();
+        }
+    }
+
+    private void notifyUserIconPackChanged() {
+        Toast.makeText(mApp.getContext(), R.string.icon_pack_updated, Toast.LENGTH_LONG).show();
     }
 
     @Override
     public void onPackageRemoved(String packageName, UserHandle user) {
         onPackagesRemoved(user, packageName);
+        Context context = mApp.getContext();
+        final String defaultIconPack = context.getString(R.string.default_iconpack);
+
+        //switch to default icon pack if the applied one is removed
+        if (PreferenceManager.getDefaultSharedPreferences(context).getString(Utilities.KEY_ICON_PACK, defaultIconPack).equals(packageName)) {
+            IconCache.getIconsHandler(context).switchIconPacks(defaultIconPack);
+        }
     }
 
     public void onPackagesRemoved(UserHandle user, String... packages) {
@@ -370,6 +390,11 @@ public class LauncherModel extends BroadcastReceiver
     public void updatePinnedShortcuts(String packageName, List<ShortcutInfoCompat> shortcuts,
             UserHandle user) {
         enqueueModelUpdateTask(new ShortcutsChangedTask(packageName, shortcuts, user, false));
+    }
+
+    public void onPackagesReload(UserHandle user) {
+        enqueueModelUpdateTask(new PackageUpdatedTask(
+                PackageUpdatedTask.OP_RELOAD, user));
     }
 
     /**
