@@ -54,9 +54,14 @@
     <!-- Toast message for alerting users that no icon packs are available. -->
     <string name="msg_no_icon_pack">No icon packs available</string>
 
-    <!-- Icon shape -->
-    <string name="icon_shape_override_label_custom">Icon shape</string>
-    <string name="icon_shape_rounded_square">Rounded square</string>
+    <!-- Adaptive Icons -->
+    <string name="icon_shape_override_label_custom">Icon Shape</string>
+    <string name="adaptive_system_default">Use System Default</string>
+    <string name="adaptive_square">Square</string>
+    <string name="adaptive_rounded_square">Rounded Square</string>
+    <string name="adaptive_squircle">Squircle</string>
+    <string name="adaptive_teardrop">Teardrop</string>
+    <string name="adaptive_hexagon">Hexagon</string>
 
     <!-- Icon size -->
     <string name="icon_size_title">Icon size</string>
