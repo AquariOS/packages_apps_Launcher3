@@ -1,7 +1,7 @@
 <resources>
     <!-- Custom icon masks can be added here -->
     <!-- Strings belong here and must match the array position of it's path -->
-    <string-array translatable="false" name="icon_shape_override_paths_names">
+    <string-array translatable="false" name="adaptive_override_paths_names">
         <item>@string/adaptive_system_default</item>
         <item>@string/adaptive_square</item>
         <item>@string/adaptive_rounded_square</item>
@@ -10,10 +10,9 @@
         <item>@string/adaptive_hexagon</item>
     </string-array>
 
-    <!-- Values for icon shape overrides. These should correspond to entries defined
-     in icon_shape_override_paths_names -->
-    <string-array translatable="false" name="icon_shape_override_paths_values">
-        <item>M50 0A50 50,0,1,1,50 100A50 50,0,1,1,50 0</item>
+    <!-- Paths go here and must match the array position of its string -->
+    <string-array translatable="false" name="adaptive_override_paths_values">
+        <item></item>
         <item>M50,0L100,0 100,100 0,100 0,0z</item>
         <item>M50,0L70,0 A30,30,0,0 1 100,30 L100,70 A30,30,0,0 1 70,100 L30,100 A30,30,0,0 1 0,70 L 0,30 A30,30,0,0 1 30,0z</item>
         <item>M50,0 C10,0 0,10 0,50 0,90 10,100 50,100 90,100 100,90 100,50 100,10 90,0 50,0 Z</item>
