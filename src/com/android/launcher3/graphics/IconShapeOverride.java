@@ -50,7 +50,7 @@ public class IconShapeOverride {
 
     private static final String TAG = "IconShapeOverride";
 
-    public static final String KEY_PREFERENCE = "pref_override_icon_shape";
+    public static final String KEY_PREFERENCE = "pref_override_adaptive";
 
     // Time to wait before killing the process this ensures that the progress bar is visible for
     // sufficient time so that there is no flicker.
@@ -162,7 +162,7 @@ public class IconShapeOverride {
                 // Value has changed
                 ProgressDialog.show(mContext,
                         null /* title */,
-                        mContext.getString(R.string.icon_shape_override_progress),
+                        mContext.getString(R.string.adaptive_override_progress),
                         true /* indeterminate */,
                         false /* cancelable */);
                 new LooperExecutor(LauncherModel.getWorkerLooper()).execute(
