@@ -24,7 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <string name="home_category_title">Home screen</string>
     <string name="home_category_summary">Set Google now panel and more</string>
     <string name="icons_category_title">Icons</string>
-    <string name="icons_category_summary">Set icon shape, size and more</string>
+    <string name="icons_category_summary">Set icon style, size and more</string>
     <string name="app_drawer_category_title">App drawer</string>
     <string name="app_drawer_category_summary">Customize your app drawer</string>
     <string name="gestures_category_title">Gestures</string>
@@ -35,7 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <string name="icon_layout_title">Icon layout</string>
 
     <!-- Adaptive Icons -->
-    <string name="icon_shape_override_label_custom">Icon Shape</string>
+    <string name="adaptive_override_label_custom">Icon style</string>
     <string name="adaptive_system_default">Use System Default</string>
     <string name="adaptive_square">Square</string>
     <string name="adaptive_rounded_square">Rounded Square</string>
