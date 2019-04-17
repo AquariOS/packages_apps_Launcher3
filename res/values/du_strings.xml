@@ -55,7 +55,7 @@
     <string name="msg_no_icon_pack">No icon packs available</string>
 
     <!-- Adaptive Icons -->
-    <string name="icon_shape_override_label_custom">Icon Shape</string>
+    <string name="adaptive_override_label_custom">Icon style</string>
     <string name="adaptive_system_default">Use System Default</string>
     <string name="adaptive_square">Square</string>
     <string name="adaptive_rounded_square">Rounded Square</string>
