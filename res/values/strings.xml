@@ -204,11 +204,11 @@
     <string name="auto_add_shortcuts_description">For new apps</string>
 
     <!-- Developer setting to change the shape of icons on home screen. [CHAR LIMIT=50] -->
-    <string name="icon_shape_override_label">Change icon shape</string>
+    <string name="adaptive_override_label">Change icon style</string>
     <!-- Subtext explaining that the icons will only be affected on the home screen. This text follows the actual icon action: Change icon shape, on Home screen [CHAR LIMIT=100] -->
-    <string name="icon_shape_override_label_location">on Home screen</string>
+    <string name="adaptive_override_label_location">on Home screen</string>
     <!-- Message shown in the progress dialog when the icon shape override is being applied [CHAR LIMIT=100]-->
-    <string name="icon_shape_override_progress">Applying icon shape changes</string>
+    <string name="adaptive_override_progress">Applying icon shape changes</string>
 
     <!-- Label on an icon that references an uninstalled package, for which we have no information about when it might be installed. [CHAR_LIMIT=15] -->
     <string name="package_state_unknown">Unknown</string>
