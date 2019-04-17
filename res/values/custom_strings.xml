@@ -35,7 +35,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <string name="icon_layout_title">Icon layout</string>
 
     <!-- Adaptive Icons -->
-    <string name="icon_shape_override_label_custom">Icon Shape</string>
+    <string name="adaptive_override_label_custom">Icon shape</string>
     <string name="adaptive_system_default">Use System Default</string>
     <string name="adaptive_square">Square</string>
     <string name="adaptive_rounded_square">Rounded Square</string>
