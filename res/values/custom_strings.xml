@@ -39,10 +39,15 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <string name="adaptive_system_default">Use System Default</string>
     <string name="adaptive_square">Square</string>
     <string name="adaptive_rounded_square">Rounded Square</string>
+    <string name="adaptive_framed_rounded_square">Framed Rounded Square</string>
     <string name="adaptive_squircle">Squircle</string>
+    <string name="adaptive_framed_squircle">Framed Squircle</string>
     <string name="adaptive_circle">Circle</string>
+    <string name="adaptive_ringed_circle">Ringed Circle</string>
     <string name="adaptive_teardrop">Teardrop</string>
+    <string name="adaptive_framed_teardrop">Framed Teardrop</string>
     <string name="adaptive_hexagon">Hexagon</string>
+    <string name="adaptive_framed_hexagon">Framed Hexagon</string>
 
     <!-- Icon size -->
     <string name="icon_size_title">Icon size</string>
