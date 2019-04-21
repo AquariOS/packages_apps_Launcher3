@@ -48,6 +48,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     <string name="adaptive_framed_teardrop">Framed Teardrop</string>
     <string name="adaptive_hexagon">Hexagon</string>
     <string name="adaptive_framed_hexagon">Framed Hexagon</string>
+    <string name="adaptive_aquarios_octopus">Octopus</string>
+    <string name="adaptive_puzzle_piece">Puzzle piece</string>
 
     <!-- Icon size -->
     <string name="icon_size_title">Icon size</string>
