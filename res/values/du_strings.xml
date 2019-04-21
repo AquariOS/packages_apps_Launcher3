@@ -67,6 +67,7 @@
     <string name="adaptive_framed_teardrop">Framed Teardrop</string>
     <string name="adaptive_hexagon">Hexagon</string>
     <string name="adaptive_framed_hexagon">Framed Hexagon</string>
+    <string name="adaptive_aquarios_octopus">Octopus</string>
 
     <!-- Icon size -->
     <string name="icon_size_title">Icon size</string>
