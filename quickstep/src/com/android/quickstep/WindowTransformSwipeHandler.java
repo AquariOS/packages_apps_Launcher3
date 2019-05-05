@@ -677,7 +677,7 @@ public class WindowTransformSwipeHandler<T extends BaseDraggingActivity> {
 
     private void doLogGesture(boolean toLauncher) {
         final int direction;
-        if (mDp.isVerticalBarLayout()) {
+        if (mDp != null && mDp.isVerticalBarLayout()) {
             direction = (mDp.isSeascape() ^ toLauncher) ? Direction.LEFT : Direction.RIGHT;
         } else {
             direction = toLauncher ? Direction.UP : Direction.DOWN;
