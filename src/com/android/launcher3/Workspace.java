@@ -58,7 +58,7 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.widget.Toast;
 
-import com.android.internal.util.du.Utils;
+import com.android.internal.util.aquarios.AquaUtils;
 
 import com.android.launcher3.Launcher.LauncherOverlay;
 import com.android.launcher3.LauncherAppWidgetHost.ProviderChangedListener;
@@ -334,28 +334,28 @@ public class Workspace extends PagedView<WorkspacePageIndicator>
             case 0: // Stock
                 break;
             case 1: // Screen off
-                Utils.switchScreenOff(getContext());
+                AquaUtils.switchScreenOff(getContext());
                 break;
             case 2: // Flashlight
-                Utils.toggleCameraFlash();
+                AquaUtils.toggleCameraFlash();
                 break;
             case 3: // Google search
                 launchGoogleSearch(getContext());
                 break;
             case 4: // Volume panel
-                Utils.toggleVolumePanel(getContext());
+                AquaUtils.toggleVolumePanel(getContext());
                 break;
             case 5: // Clear notifications
-                Utils.clearAllNotifications();
+                AquaUtils.clearAllNotifications();
                 break;
             case 6: // Screenshot
-                Utils.takeScreenshot(true);
+                AquaUtils.takeScreenshot(true);
                 break;
             case 7: // Notifications
-                Utils.toggleNotifications();
+                AquaUtils.toggleNotifications();
                 break;
             case 8: // QS panel
-                Utils.toggleQsPanel();
+                AquaUtils.toggleQsPanel();
                 break;
         }
     }
@@ -3562,7 +3562,7 @@ public class Workspace extends PagedView<WorkspacePageIndicator>
         launchIntent.setPackage("com.google.android.googlequicksearchbox");
         launchIntent.setClassName("com.google.android.googlequicksearchbox",
                 "com.google.android.googlequicksearchbox.SearchActivity");
-        if (Utils.isPackageInstalled(context,
+        if (AquaUtils.isPackageInstalled(context,
                 "com.google.android.googlequicksearchbox")) {
             context.startActivity(launchIntent);
         } else {
